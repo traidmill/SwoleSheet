@@ -1,7 +1,7 @@
 const PROGRAM_SHEET = 'Program';
 const LOGG_SHEET = 'Logg';
 const SESSIONS_SHEET = 'Sessions';
-const SESSION_HEADERS = ['Pass-ID', 'Pass', 'Datum', 'Start-tid', 'Slut-tid', 'Notering', 'Program', 'Ändringar'];
+const SESSION_HEADERS = ['Pass-ID', 'Pass', 'Datum', 'Start-tid', 'Slut-tid', 'Notering', 'Program', 'Vecka', 'Ändringar'];
 const TZ = Session.getScriptTimeZone();
 
 // Flera program = en flik per program. En flik är ett program om den heter exakt
@@ -781,6 +781,7 @@ function startPass(passName, programName) {
   const sessions = _ensureSheet(SESSIONS_SHEET, SESSION_HEADERS);
   _ensureTextColumn(sessions, 'Pass-ID');
   _ensureColumn(sessions, 'Program');
+  _ensureColumn(sessions, 'Vecka');
   _ensureTextColumn(sessions, 'Ändringar');
   const logg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LOGG_SHEET);
   if (!logg) throw new Error('Fliken "' + LOGG_SHEET + '" hittades inte.');
@@ -793,6 +794,7 @@ function startPass(passName, programName) {
   }
 
   const program = programName || _getActiveProgram();
+  const vecka = _getCurrentWeek(program); // veckan passet tillhör — fryses vid start
   const now = new Date();
   const passId = _passIdFromDate(now);
 
@@ -804,6 +806,7 @@ function startPass(passName, programName) {
     'Slut-tid': '',
     'Notering': '',
     'Program': program,
+    'Vecka': vecka,
     'Ändringar': ''
   });
 
@@ -812,7 +815,8 @@ function startPass(passName, programName) {
     pass: passName,
     date: _dateKey(now),
     startTime: now.toISOString(),
-    program: program
+    program: program,
+    vecka: vecka
   };
 }
 
@@ -823,15 +827,63 @@ function endPass(passId) {
   if (!s) throw new Error('Inga sessioner registrerade.');
   const cId = _col(s.colMap, 'Pass-ID', SESSIONS_SHEET);
   const cSlut = _col(s.colMap, 'Slut-tid', SESSIONS_SHEET);
+  const cProg = s.colMap['Program'];
+  const cVecka = s.colMap['Vecka'];
   const target = _normalizePassId(passId);
 
   for (let i = 0; i < s.rows.length; i++) {
     if (_normalizePassId(s.rows[i][cId]) === target) {
       s.sheet.getRange(i + 2, cSlut + 1).setValue(new Date());
-      return { ok: true };
+      // Auto-avancera programveckan när alla pass i veckan är avslutade.
+      let advancedWeek = null;
+      if (cVecka !== undefined) {
+        const program = _normalizeProgram(cProg === undefined ? '' : s.rows[i][cProg], _defaultProgramName());
+        const week = Number(s.rows[i][cVecka]);
+        if (week) {
+          SpreadsheetApp.flush(); // säkerställ att slut-tiden syns vid omläsningen nedan
+          try { advancedWeek = _maybeAdvanceWeek(program, week); } catch (e) { advancedWeek = null; }
+        }
+      }
+      return { ok: true, advancedWeek: advancedWeek };
     }
   }
   throw new Error('Sessionen hittades inte.');
+}
+
+// Avancerar programveckan om varje pass i den angivna veckan har minst en avslutad
+// session (för det programmet, just den veckan). Wrappar till första veckan efter
+// sista (ny cykel). Returnerar nya veckan, eller null om inget skedde.
+// Kräver 'Vecka'-kolumnen i Sessions — gamla rader utan vecka räknas aldrig som klara.
+function _maybeAdvanceWeek(programName, week) {
+  const bundle = _programBundle(programName, week);
+  const weeks = bundle.weeks;
+  if (!weeks || weeks.length <= 1) return null; // enveckas-program → inget att avancera
+  const weekPasses = bundle.program.map(function (p) { return p.pass; });
+  if (!weekPasses.length) return null;
+
+  const s = _readSessionsSheet();
+  if (!s) return null;
+  const cPass = s.colMap['Pass'];
+  const cProg = s.colMap['Program'];
+  const cSlut = s.colMap['Slut-tid'];
+  const cVecka = s.colMap['Vecka'];
+  if (cVecka === undefined || cPass === undefined || cSlut === undefined) return null;
+  const defaultProgram = _defaultProgramName();
+
+  const done = {};
+  s.rows.forEach(function (row) {
+    if (_normalizeProgram(cProg === undefined ? '' : row[cProg], defaultProgram) !== programName) return;
+    if (Number(row[cVecka]) !== Number(week)) return;
+    if (row[cSlut] === '' || row[cSlut] === null) return; // ej avslutad
+    done[String(row[cPass]).trim()] = true;
+  });
+  const allDone = weekPasses.every(function (p) { return done[p]; });
+  if (!allDone) return null;
+
+  const idx = weeks.indexOf(Number(week));
+  const nextWeek = (idx >= 0 && idx < weeks.length - 1) ? weeks[idx + 1] : weeks[0];
+  PropertiesService.getDocumentProperties().setProperty(WEEK_KEY_PREFIX + programName, String(nextWeek));
+  return nextWeek;
 }
 
 function getRecentSessionsForPass(passName, limit, programName) {

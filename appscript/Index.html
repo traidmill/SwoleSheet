@@ -752,6 +752,13 @@
       const n = Number(String(str).replace(',', '.'));
       return isNaN(n) ? null : n;
     }
+    // Första heltalet ur ett reps-mål ("8" → "8", "8-10" → "8", "" → ""). Reps-fältet
+    // tar bara siffror (maxlength 3), så intervall förifylls med sin nedre gräns.
+    function firstRepNum(reps) {
+      if (reps === null || reps === undefined) return '';
+      const m = String(reps).match(/\d+/);
+      return m ? m[0] : '';
+    }
     function daysSince(dateStr) {
       if (!dateStr) return null;
       const today = new Date(state.todayStr + 'T00:00:00');
@@ -1875,7 +1882,21 @@
             }
 
             google.script.run
-              .withSuccessHandler(function () {
+              .withSuccessHandler(function (r) {
+                // Backend kan ha auto-avancerat programveckan (alla pass i veckan klara).
+                if (r && r.advancedWeek && r.advancedWeek !== state.currentWeek) {
+                  const nw = r.advancedWeek;
+                  google.script.run
+                    .withSuccessHandler(function (d) {
+                      state.currentWeek = d.week || nw;
+                      if (d.weeks) state.weeks = d.weeks;
+                      state.program = d.program || state.program;
+                      toast('Veckan klar — programvecka framflyttad till vecka ' + (d.week || nw), 'success');
+                      render();
+                    })
+                    .withFailureHandler(function () {})
+                    .setCurrentWeek(state.activeProgram, nw);
+                }
                 google.script.run
                   .withSuccessHandler(function (prs) { showSummary(prs); })
                   .withFailureHandler(function () { showSummary([]); })
@@ -1960,7 +1981,12 @@
         ? 'Set ' + state.currentSetNr + ' (extra)'
         : 'Set ' + state.currentSetNr + ' av ' + ex.set;
       const målBits = [];
-      if (curSeg && curSeg.reps !== null && curSeg.reps !== undefined && curSeg.reps !== '') målBits.push('Mål ' + curSeg.reps);
+      const harMålvikt = curSeg && curSeg.målvikt !== null && curSeg.målvikt !== undefined && curSeg.målvikt !== '';
+      if (curSeg && curSeg.reps !== null && curSeg.reps !== undefined && curSeg.reps !== '') {
+        målBits.push('Mål ' + curSeg.reps + (harMålvikt ? ' × ' + fmtNum(curSeg.målvikt) + ' kg' : ''));
+      } else if (harMålvikt) {
+        målBits.push('Mål ' + fmtNum(curSeg.målvikt) + ' kg');
+      }
       if (curSeg && curSeg.rir !== null && curSeg.rir !== undefined && curSeg.rir !== '') målBits.push('RIR ' + curSeg.rir);
       const målPart = målBits.length ? ' · ' + esc(målBits.join(' · ')) : '';
       parent.appendChild(el(
@@ -2088,18 +2114,25 @@
       const editNr = editing ? state.editingSetNr : null;
       const lastDone = completedSets[completedSets.length - 1];
 
+      // Förifyllning för nytt set: veckans föreskrivna mål styr (progression). Faller
+      // tillbaka på förra passet → senast loggade när veckans mål saknas (t.ex.
+      // kroppsviktsövning utan målvikt, eller reps-intervall utan siffra).
       let defaultReps = '';
       if (editing) {
         if (editSet.reps !== undefined && editSet.reps !== null) defaultReps = editSet.reps;
-      } else if (prevSetForTarget && prevSetForTarget.reps !== undefined && prevSetForTarget.reps !== null) defaultReps = prevSetForTarget.reps;
-      else if (lastDone && lastDone.reps !== undefined && lastDone.reps !== null) defaultReps = lastDone.reps;
+      } else {
+        const målReps = curSeg ? firstRepNum(curSeg.reps) : '';
+        if (målReps !== '') defaultReps = målReps;
+        else if (prevSetForTarget && prevSetForTarget.reps !== undefined && prevSetForTarget.reps !== null) defaultReps = prevSetForTarget.reps;
+        else if (lastDone && lastDone.reps !== undefined && lastDone.reps !== null) defaultReps = lastDone.reps;
+      }
 
       let defaultVikt = '';
       if (editing) {
         if (editSet.vikt !== undefined && editSet.vikt !== null) defaultVikt = fmtNum(editSet.vikt);
-      } else if (prevSetForTarget && prevSetForTarget.vikt !== undefined && prevSetForTarget.vikt !== null) defaultVikt = fmtNum(prevSetForTarget.vikt);
+      } else if (curSeg && curSeg.målvikt !== null && curSeg.målvikt !== undefined && curSeg.målvikt !== '') defaultVikt = fmtNum(curSeg.målvikt);
+      else if (prevSetForTarget && prevSetForTarget.vikt !== undefined && prevSetForTarget.vikt !== null) defaultVikt = fmtNum(prevSetForTarget.vikt);
       else if (lastDone && lastDone.vikt !== undefined && lastDone.vikt !== null) defaultVikt = fmtNum(lastDone.vikt);
-      else if (curSeg && curSeg.målvikt !== null && curSeg.målvikt !== undefined && curSeg.målvikt !== '') defaultVikt = fmtNum(curSeg.målvikt);
 
       const defaultKomm = editing ? (editSet.kommentar || '') : '';
 
