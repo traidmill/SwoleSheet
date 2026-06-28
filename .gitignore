@@ -1,0 +1,5 @@
+# Claude Code local memory store — not for the public repo
+memory/
+
+# clasp OAuth credentials (lives in home dir, but never commit if copied)
+.clasprc.json
