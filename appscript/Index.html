@@ -390,20 +390,21 @@
     }
     .sg { position: relative; z-index: 1; margin-top: 14px; }
     .sg-head {
-      display: grid; grid-template-columns: 62px 1fr 1fr;
-      align-items: baseline; gap: 10px;
+      display: grid; grid-template-columns: 54px 1fr 1fr 1fr;
+      align-items: baseline; gap: 8px;
       padding: 0 10px 7px; border-bottom: 1px solid #1f1f22;
     }
-    .sg-head .h-prev, .sg-head .h-today {
+    .sg-head .h-prev, .sg-head .h-mal, .sg-head .h-today {
       font: 600 11px 'Barlow Condensed', sans-serif;
-      letter-spacing: 1.5px; text-transform: uppercase; text-align: right;
+      letter-spacing: 1.2px; text-transform: uppercase; text-align: right;
       white-space: nowrap;
     }
     .sg-head .h-prev { color: var(--muted-2); }
+    .sg-head .h-mal { color: #aeb4bc; }
     .sg-head .h-today { color: var(--accent); }
     .sg-row {
-      display: grid; grid-template-columns: 62px 1fr 1fr;
-      align-items: center; gap: 10px;
+      display: grid; grid-template-columns: 54px 1fr 1fr 1fr;
+      align-items: center; gap: 8px;
       padding: 8px 10px; border-left: 3px solid #1a1a1c;
     }
     .sg-row.active {
@@ -422,10 +423,12 @@
       color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase;
       margin-top: 2px;
     }
-    .sg-prev { font: 600 17px 'Oswald', sans-serif; color: #7e848c; text-align: right; white-space: nowrap; }
+    .sg-prev { font: 600 15px 'Oswald', sans-serif; color: #7e848c; text-align: right; white-space: nowrap; }
     .sg-row.active .sg-prev { color: #aeb4bc; }
+    .sg-mal { font: 600 15px 'Oswald', sans-serif; color: #aeb4bc; text-align: right; white-space: nowrap; }
+    .sg-row.active .sg-mal { color: #cfe9da; }
     .sg-today {
-      font: 600 17px 'Oswald', sans-serif;
+      font: 600 15px 'Oswald', sans-serif;
       color: #3a3d42; text-align: right; white-space: nowrap;
     }
     .sg-row.done .sg-today, .sg-row.active .sg-today { color: var(--accent); font-weight: 700; }
@@ -1684,7 +1687,12 @@
               state.starting = false;
               state.activeSession = sess;
               state.completedByPassId[sess.passId] = {};
-              state.view = 'passDetailActive';
+              // Hoppa direkt in i första övningens registrering — minsta väg till att logga.
+              // Översikten nås via topbarens "‹ Tillbaka" / "Klar med övning".
+              state.selectedExerciseIdx = 0;
+              state.currentSetNr = 1;
+              state.editingSetNr = null;
+              state.view = 'exercise';
               toast('Pass startat', 'success');
               render();
             })
@@ -2016,6 +2024,7 @@
         grid.appendChild(el(
           '<div class="sg-head"><span></span>' +
             '<span class="h-prev">' + skBar('70%', '0.7rem') + '</span>' +
+            '<span class="h-mal">Mål</span>' +
             '<span class="h-today">Idag</span>' +
           '</div>'
         ));
@@ -2026,6 +2035,7 @@
               '<div class="sg-setcell">' + skBar('60%', '1rem') + '</div>' +
               '<div>' + skBar('70%', '1rem') + '</div>' +
               '<div>' + skBar('70%', '1rem') + '</div>' +
+              '<div>' + skBar('70%', '1rem') + '</div>' +
             '</div>'
           ));
         }
@@ -2033,7 +2043,8 @@
         const prevSets = (prevSession && prevSession.sets) || [];
         let rowCount = Math.max(ex.set, prevSets.length, completedSets.length);
         if (state.currentSetNr > rowCount) rowCount = state.currentSetNr;
-        // Saknas förra passet helt → visa programmålet (per set-segment) i målkolumnen.
+        // Veckans föreskrivna mål (per set-segment) — egen MÅL-kolumn så man ser
+        // dagens vikt rad för rad, inte bara förra passets.
         const programMålFor = function (setNr) {
           const s = segForSet(ex, setNr);
           return esc(s.reps) + (s.målvikt !== null && s.målvikt !== undefined && s.målvikt !== '' ? ' × ' + esc(fmtNum(s.målvikt)) : '');
@@ -2041,7 +2052,8 @@
         grid.appendChild(el(
           '<div class="sg-head">' +
             '<span></span>' +
-            '<span class="h-prev">' + (prevSession ? 'Förra · ' + esc(fmtDateMini(prevSession.datum)) : 'Mål (program)') + '</span>' +
+            '<span class="h-prev">' + (prevSession ? 'Förra · ' + esc(fmtDateMini(prevSession.datum)) : 'Förra') + '</span>' +
+            '<span class="h-mal">Mål</span>' +
             '<span class="h-today">Idag</span>' +
           '</div>'
         ));
@@ -2049,8 +2061,8 @@
           const setNr = i + 1;
           const pSet = prevSets[i];
           const dSet = completedSets[i];
-          const prevStr = pSet ? esc(fmtSetShort(pSet))
-            : (!prevSession && setNr <= ex.set ? programMålFor(setNr) : '–');
+          const prevStr = pSet ? esc(fmtSetShort(pSet)) : '–';
+          const malStr = programMålFor(setNr) || '–';
           let rowCls = '';
           let setCell = '<span class="sg-setlbl">SET ' + setNr + '</span>';
           let todayStr = '–';
@@ -2072,6 +2084,7 @@
             '<div class="sg-row' + rowCls + '">' +
               '<span class="sg-setcell">' + setCell + '</span>' +
               '<span class="sg-prev num">' + prevStr + '</span>' +
+              '<span class="sg-mal num">' + malStr + '</span>' +
               '<span class="sg-today num">' + todayStr + '</span>' +
             '</div>'
           );
@@ -2098,6 +2111,7 @@
             '<div class="sg-row sg-total">' +
               '<span class="sg-setlbl">Totalt</span>' +
               '<span class="sg-prev num">' + (prevTotal > 0 ? esc(fmtVolume(prevTotal)) + unit : '–') + '</span>' +
+              '<span class="sg-mal num">&nbsp;</span>' +
               '<span class="sg-today num">' + (curTotal > 0 ? esc(fmtVolume(curTotal)) + unit + totTrend : '–') + '</span>' +
             '</div>'
           ));
@@ -2574,6 +2588,9 @@
             } else {
               state.view = 'passList';
             }
+          } else if (state.programs.length === 1) {
+            // Ett enda program → hoppa över programlistan, gå rakt till veckans pass.
+            state.view = 'passList';
           } else {
             state.view = 'programList';
           }
