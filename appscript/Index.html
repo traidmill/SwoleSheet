@@ -332,6 +332,31 @@
     .xcols .xsub { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
     .xprev-val { color: var(--muted); overflow-wrap: break-word; }
     .xnote { font-style: italic; text-transform: none; letter-spacing: 0.3px; }
+    /* Kompakt passöversikt: allt ska rymmas utan skroll */
+    .last-wrap { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .last-strip {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      background: #121214; border: 1px solid #1f1f22; border-radius: 12px;
+      padding: 11px 13px; margin: 0;
+      color: var(--muted); cursor: pointer; text-align: left;
+      font: 600 12px 'Barlow Condensed', sans-serif;
+      letter-spacing: 1px; text-transform: uppercase;
+      white-space: nowrap; overflow: hidden;
+    }
+    .last-strip:active { background: #17171a; }
+    .last-strip .vals { color: #cfd3d9; overflow: hidden; text-overflow: ellipsis; }
+    .last-strip .pr { color: var(--accent); }
+    .last-strip .chev { color: #3a3d42; flex: 0 0 auto; }
+    .xlist-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .xlist.compact .xrow { padding: 8px 2px; }
+    .xlist.compact .xname { font-size: 16px; }
+    .xlist.compact .xedge { height: 26px; }
+    .xlist.compact .xcols { margin-top: 1px; }
+    .btn-start-sticky {
+      position: sticky; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 5;
+      box-shadow: 0 -12px 20px rgba(11, 12, 14, 0.7), 0 10px 28px -12px var(--accent-glow);
+    }
     .btn-add-ex {
       display: block; width: 100%; margin-top: 12px; padding: 11px;
       border: 1px dashed #2a3a32; border-radius: 10px;
@@ -1212,20 +1237,16 @@
       }
       return h;
     }
-    // "Förra gången"-kortet: speglar det laddade kortet element för element
-    // (samma klasser + maskerad text) så höjden blir identisk per konstruktion.
-    function skStatsCard() {
-      return '<div class="stat-card" aria-busy="true">' +
-          '<div class="stat-card-row">' +
-            '<span class="stat-card-label">' + skMask('Förra gången · 00 aaa') + '</span>' +
-            '<div class="skeleton" aria-hidden="true" style="width:32px;height:32px;border-radius:8px;flex-shrink:0"></div>' +
+    // Kompakt "förra gången"-rad: speglar den laddade raden (samma klasser +
+    // maskerad text) så höjden blir identisk per konstruktion.
+    function skLastStrip() {
+      return '<div class="last-wrap" aria-busy="true">' +
+          '<div class="last-strip" style="cursor:default">' +
+            '<span>' + skMask('Förra · 00 aaa') + '</span>' +
+            '<span class="vals num">' + skMask('0 000 kg · 00 set · 00 min') + '</span>' +
+            '<span class="chev" aria-hidden="true">›</span>' +
           '</div>' +
-          '<div class="stats3">' +
-            '<div><div class="v num">' + skMask('0 000') + '</div><div class="l">' + skMask('kg volym') + '</div></div>' +
-            '<div><div class="v num">' + skMask('00') + '</div><div class="l">' + skMask('set') + '</div></div>' +
-            '<div><div class="v num">' + skMask('000') + '</div><div class="l">' + skMask('min') + '</div></div>' +
-          '</div>' +
-          '<div class="btn-back" style="margin-top:10px">' + skMask('Visa historik ›') + '</div>' +
+          '<div class="skeleton" aria-hidden="true" style="width:32px;height:32px;border-radius:8px;flex-shrink:0"></div>' +
         '</div>';
     }
     // Hela startskärmen (programlistan): rubrik + några programkort.
@@ -1603,39 +1624,51 @@
 
       // null = laddar, false = inga pass, undefined = inte begärt ännu
       if (sess === null || sess === undefined) {
-        parent.appendChild(el(skStatsCard()));
+        parent.appendChild(el(skLastStrip()));
         return;
-      }
-      function histLink(target) {
-        const b = el('<button class="btn-back" style="margin-top:10px">Visa historik ›</button>');
-        b.onclick = function () { openHistory(pass.pass, 'passDetailIdle'); };
-        target.appendChild(b);
       }
 
       if (sess === false) {
         // Även pass utan Sessions-rader kan ha legacy-historik (importerade set utan Pass-ID).
-        const emptyCard = el(
-          '<div class="stat-card">' +
-            '<div class="stat-card-label">Förra gången</div>' +
-            '<div class="empty" style="margin-top:8px">Inga loggade pass ännu.</div>' +
+        const emptyStrip = el(
+          '<div class="last-wrap">' +
+            '<button class="last-strip" aria-label="Visa historik">' +
+              '<span>Förra gången</span>' +
+              '<span class="vals">Inga pass ännu</span>' +
+              '<span class="chev" aria-hidden="true">›</span>' +
+            '</button>' +
           '</div>'
         );
-        histLink(emptyCard);
-        parent.appendChild(emptyCard);
+        emptyStrip.querySelector('.last-strip').onclick = function () { openHistory(pass.pass, 'passDetailIdle'); };
+        parent.appendChild(emptyStrip);
         return;
       }
 
-      const card = el('<div class="stat-card"></div>');
+      // Kompakt enrads-sammanfattning: datum · volym · set · min · PR — hela raden
+      // öppnar historiken; ✕ tar bort senaste passet.
+      let durationMin = null;
+      if (sess.startTime && sess.endTime) {
+        const m = Math.round((new Date(sess.endTime) - new Date(sess.startTime)) / 60000);
+        if (m > 0) durationMin = m;
+      }
+      const vals = [];
+      if (sess.totalVolume > 0) vals.push(esc(fmtVolume(sess.totalVolume)) + ' kg');
+      vals.push(sess.totalSets + ' set');
+      if (durationMin !== null) vals.push(durationMin + ' min');
+      const prPart = sess.prCount > 0 ? '<span class="pr"> · ' + sess.prCount + ' PR</span>' : '';
 
-      // Rubrik + ev. PR-markering + ta bort
-      const prPart = sess.prCount > 0 ? ' <span style="color:var(--accent)">· ' + sess.prCount + ' PR</span>' : '';
-      const head = el(
-        '<div class="stat-card-row">' +
-          '<span class="stat-card-label">Förra gången · ' + esc(fmtDateMini(sess.date)) + prPart + '</span>' +
+      const wrap = el(
+        '<div class="last-wrap">' +
+          '<button class="last-strip" aria-label="Visa historik">' +
+            '<span>Förra · ' + esc(fmtDateMini(sess.date)) + '</span>' +
+            '<span class="vals num">' + vals.join(' · ') + prPart + '</span>' +
+            '<span class="chev" aria-hidden="true">›</span>' +
+          '</button>' +
           '<button class="icon-btn danger" title="Ta bort senaste passet" aria-label="Ta bort senaste passet">✕</button>' +
         '</div>'
       );
-      head.querySelector('.icon-btn').onclick = function () {
+      wrap.querySelector('.last-strip').onclick = function () { openHistory(pass.pass, 'passDetailIdle'); };
+      wrap.querySelector('.icon-btn').onclick = function () {
         showModal(
           'Ta bort senaste passet?',
           'Passet från ' + sess.date + ' samt ' + sess.totalSets + ' loggade set tas bort permanent.',
@@ -1662,26 +1695,7 @@
           }
         );
       };
-      card.appendChild(head);
-
-      // Stora siffror: volym · set · min
-      let durationMin = null;
-      if (sess.startTime && sess.endTime) {
-        const m = Math.round((new Date(sess.endTime) - new Date(sess.startTime)) / 60000);
-        if (m > 0) durationMin = m;
-      }
-      const stats = [];
-      if (sess.totalVolume > 0) {
-        stats.push('<div><div class="v green num">' + esc(fmtVolume(sess.totalVolume)) + '</div><div class="l">kg volym</div></div>');
-      }
-      stats.push('<div><div class="v num">' + sess.totalSets + '</div><div class="l">set</div></div>');
-      if (durationMin !== null) {
-        stats.push('<div><div class="v num">' + durationMin + '</div><div class="l">min</div></div>');
-      }
-      card.appendChild(el('<div class="stats3">' + stats.join('') + '</div>'));
-      histLink(card);
-
-      parent.appendChild(card);
+      parent.appendChild(wrap);
     }
 
     function renderPassDetailIdle(parent) {
@@ -1727,8 +1741,8 @@
       const sess = state.lastSessionByPass[pass.pass];
       const loadingPrev = (sess === null || sess === undefined);
       const sbe = (sess && sess.setsByExercise) || {};
-      const xlist = el('<div class="xlist" style="margin-top:4px"' + (loadingPrev ? ' aria-busy="true"' : '') + '>' +
-        '<div class="xlist-label">Övningar</div></div>');
+      const xlist = el('<div class="xlist compact" style="margin-top:4px"' + (loadingPrev ? ' aria-busy="true"' : '') + '>' +
+        '<div class="xlist-label xlist-head"><span>Övningar · Mål</span><span>Förra</span></div></div>');
       pass.exercises.forEach(function (ex) {
         const sets = sbe[ex.övning];
         let prevHtml;
@@ -1737,8 +1751,8 @@
         else prevHtml = '–';
         let goals = '';
         exSegments(ex).forEach(function (s) {
-          goals += '<div class="xsub num">' + esc(segTarget(s)) + '</div>';
-          if (s.notering) goals += '<div class="xsub xnote">' + esc(s.notering) + '</div>';
+          goals += '<div class="xsub num">' + esc(segTarget(s)) +
+            (s.notering ? ' <span class="xnote">— ' + esc(s.notering) + '</span>' : '') + '</div>';
         });
         xlist.appendChild(el(
           '<div class="xrow" style="cursor:default">' +
@@ -1746,8 +1760,8 @@
             '<div class="xmain">' +
               '<div class="xname">' + esc(ex.övning) + '</div>' +
               '<div class="xcols">' +
-                '<div class="xcol"><div class="xcol-label">Mål</div>' + goals + '</div>' +
-                '<div class="xcol xprev"><div class="xcol-label">Förra</div>' +
+                '<div class="xcol">' + goals + '</div>' +
+                '<div class="xcol xprev">' +
                   '<div class="xsub num xprev-val">' + prevHtml + '</div></div>' +
               '</div>' +
             '</div>' +
@@ -1759,7 +1773,7 @@
       // Start button
       const startDisabled = !!state.activeSession;
       const startBtn = el(
-        '<button class="btn-save glow" style="margin-top:16px;height:62px"' + (startDisabled ? ' disabled' : '') + '>' +
+        '<button class="btn-save glow btn-start-sticky" style="margin-top:16px;height:62px"' + (startDisabled ? ' disabled' : '') + '>' +
           (state.starting ? '<span class="spinner"></span>Startar…' : 'Starta passet →') +
         '</button>'
       );
