@@ -21,7 +21,7 @@
       --text: #F4F6F5;
       --text-strong: #ffffff;
       --muted: #8A9099;
-      --muted-2: #6f757d;
+      --muted-2: #7a8189; /* ≥4.5:1 mot bakgrunden (WCAG AA) */
       --accent: #22FF88;
       --accent-2: #3affa0;
       --accent-deep: #16d96f;
@@ -121,8 +121,11 @@
       border-radius: 8px; cursor: pointer;
       color: var(--muted); font-size: 0.9rem;
       flex-shrink: 0;
+      position: relative;
       transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     }
+    /* Träffyta ≥44px utan visuell ändring */
+    .icon-btn::after { content: ''; position: absolute; inset: -7px; }
     .icon-btn:active { background: var(--surface-2); }
     .icon-btn.danger { color: var(--danger); border-color: var(--danger-border); }
     .icon-btn.danger:active { background: var(--danger-soft); }
@@ -215,7 +218,7 @@
     }
     .pcard-tag {
       font: 600 12px 'Barlow Condensed', sans-serif;
-      color: #5f6660; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted-2); letter-spacing: 1.5px; text-transform: uppercase;
       white-space: nowrap;
     }
     .pcard-tag.green { color: var(--accent); }
@@ -295,7 +298,7 @@
     .xrow.done .xchev { color: #2f5a44; }
     .xrow.waiting { opacity: 0.8; }
     .xrow.waiting .xname { color: var(--muted); }
-    .xrow.waiting .xsub { color: #5f6660; }
+    .xrow.waiting .xsub { color: var(--muted-2); }
     .xrow.waiting .xedge { background: #1a1a1c; }
     .xrow.waiting .xchev { color: #2a2d32; }
     .xrow.current {
@@ -318,6 +321,17 @@
     }
     .btn-outline-green:active { background: #101512; border-color: #3a5a48; }
     .xrow .xmenu { flex: 0 0 auto; width: 30px; height: 30px; font-size: 17px; line-height: 1; }
+    /* Passöversikt (idle): MÅL vänster, FÖRRA höger under övningsnamnet */
+    .xcols { display: flex; gap: 14px; margin-top: 3px; align-items: flex-start; }
+    .xcol { flex: 1 1 55%; min-width: 0; }
+    .xcol.xprev { flex: 0 1 45%; max-width: 45%; text-align: right; }
+    .xcol-label {
+      font: 600 10px 'Barlow Condensed', sans-serif;
+      color: var(--muted-2); letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .xcols .xsub { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
+    .xprev-val { color: var(--muted); overflow-wrap: break-word; }
+    .xnote { font-style: italic; text-transform: none; letter-spacing: 0.3px; }
     .btn-add-ex {
       display: block; width: 100%; margin-top: 12px; padding: 11px;
       border: 1px dashed #2a3a32; border-radius: 10px;
@@ -472,7 +486,8 @@
     }
     .step-btn:active { background: #202024; }
     .step-btn.plus:active { background: var(--accent); color: var(--accent-text); }
-    .step-btn.sm { width: 42px; height: 42px; border-radius: 8px; font: 600 22px 'Oswald', sans-serif; }
+    .step-btn.sm { width: 42px; height: 42px; border-radius: 8px; font: 600 22px 'Oswald', sans-serif; position: relative; }
+    .step-btn.sm::after { content: ''; position: absolute; inset: -2px; }
     .w-row { display: flex; align-items: center; gap: 12px; }
     .w-input-wrap { flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 6px; min-width: 0; }
     input.w-input {
@@ -693,6 +708,30 @@
       border-radius: 4px; height: 0.85rem; width: 60%;
     }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    /* Skelett som maskerar riktig text — identisk radhöjd med laddat innehåll */
+    .sk-mask {
+      color: transparent !important;
+      background: linear-gradient(90deg, var(--surface), var(--surface-2), var(--surface));
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+      border-radius: 4px;
+      user-select: none; pointer-events: none;
+    }
+
+    /* === Tillgänglighet === */
+    button:focus-visible, [role="button"]:focus-visible,
+    input:focus-visible, .hist-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+      /* Aktivitetsindikatorn får snurra — den signalerar pågående arbete */
+      .spinner { animation: spin 1.4s linear infinite !important; }
+    }
   </style>
 </head>
 <body>
@@ -741,6 +780,19 @@
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
     function el(html) { const w = document.createElement('div'); w.innerHTML = html.trim(); return w.firstElementChild; }
+
+    // Gör en klickbar div åtkomlig med tangentbord/skärmläsare: knapp-roll,
+    // fokuserbar, Enter/Space aktiverar samma handler som klick.
+    function makeActionable(elem, handler, label) {
+      elem.setAttribute('role', 'button');
+      elem.setAttribute('tabindex', '0');
+      if (label) elem.setAttribute('aria-label', label);
+      elem.onclick = handler;
+      elem.onkeydown = function (e) {
+        if (e.target !== elem) return; // nästlade knappar (t.ex. ⋯) sköter sig själva
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(e); }
+      };
+    }
     function esc(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -927,6 +979,7 @@
     function toast(msg, kind) {
       const t = document.createElement('div');
       t.className = 'toast' + (kind === 'error' ? ' error-toast' : kind === 'success' ? ' success-toast' : '');
+      t.setAttribute('role', kind === 'error' ? 'alert' : 'status');
       t.textContent = msg;
       document.body.appendChild(t);
       requestAnimationFrame(function () { t.classList.add('show'); });
@@ -1143,32 +1196,36 @@
     // så att platshållaren har exakt samma höjd som det laddade innehållet —
     // då hoppar inte sidan när datan kommer.
     function skBar(w, h, mt) {
-      return '<div class="skeleton" style="width:' + w + ';height:' + (h || '0.85rem') +
+      return '<div class="skeleton" aria-hidden="true" style="width:' + w + ';height:' + (h || '0.85rem') +
         (mt ? ';margin-top:' + mt : '') + '"></div>';
     }
+    // Maskerad riktig text: samma typsnitt/radhöjd som laddat innehåll ⇒ ingen höjdskillnad.
+    function skMask(txt) { return '<span class="sk-mask" aria-hidden="true">' + txt + '</span>'; }
     // Lista med övnings-/historikrader i xlist-format.
     function skRows(n) {
       let h = '';
       for (let i = 0; i < n; i++) {
-        h += '<div class="xrow">' +
+        h += '<div class="xrow" aria-hidden="true">' +
           '<div class="xedge"></div>' +
           '<div class="xmain">' + skBar('55%', '1.05rem') + skBar('38%', '0.75rem', '7px') + '</div>' +
         '</div>';
       }
       return h;
     }
-    // "Förra gången"-kortet: etikettrad + ✕ + tre stora siffror + historik-länk.
+    // "Förra gången"-kortet: speglar det laddade kortet element för element
+    // (samma klasser + maskerad text) så höjden blir identisk per konstruktion.
     function skStatsCard() {
-      return '<div class="stat-card">' +
-          '<div class="stat-card-row">' + skBar('45%', '0.85rem') +
-            '<div class="skeleton" style="width:32px;height:32px;border-radius:8px"></div>' +
+      return '<div class="stat-card" aria-busy="true">' +
+          '<div class="stat-card-row">' +
+            '<span class="stat-card-label">' + skMask('Förra gången · 00 aaa') + '</span>' +
+            '<div class="skeleton" aria-hidden="true" style="width:32px;height:32px;border-radius:8px;flex-shrink:0"></div>' +
           '</div>' +
           '<div class="stats3">' +
-            '<div>' + skBar('80%', '22px') + skBar('60%', '0.6rem', '6px') + '</div>' +
-            '<div>' + skBar('70%', '22px') + skBar('55%', '0.6rem', '6px') + '</div>' +
-            '<div>' + skBar('70%', '22px') + skBar('55%', '0.6rem', '6px') + '</div>' +
+            '<div><div class="v num">' + skMask('0 000') + '</div><div class="l">' + skMask('kg volym') + '</div></div>' +
+            '<div><div class="v num">' + skMask('00') + '</div><div class="l">' + skMask('set') + '</div></div>' +
+            '<div><div class="v num">' + skMask('000') + '</div><div class="l">' + skMask('min') + '</div></div>' +
           '</div>' +
-          skBar('35%', '0.8rem', '14px') +
+          '<div class="btn-back" style="margin-top:10px">' + skMask('Visa historik ›') + '</div>' +
         '</div>';
     }
     // Hela startskärmen (programlistan): rubrik + några programkort.
@@ -1181,7 +1238,7 @@
       ));
       for (let i = 0; i < 3; i++) {
         parent.appendChild(el(
-          '<div class="pcard' + (i === 0 ? ' today' : ' upcoming') + '">' +
+          '<div class="pcard' + (i === 0 ? ' today' : ' upcoming') + '" aria-hidden="true">' +
             '<div class="pcard-edge"></div>' +
             '<div class="pcard-body">' +
               '<div class="pcard-top">' + skBar('35%', '0.7rem') + '</div>' +
@@ -1252,7 +1309,7 @@
 
       if (state.view === 'loading') renderLoadingSkeleton(view);
       else if (state.view === 'error') {
-        view.appendChild(el('<div class="error">' + esc(state.errorMsg) + '</div>'));
+        view.appendChild(el('<div class="error" role="alert">' + esc(state.errorMsg) + '</div>'));
         const b = el('<button class="btn">Försök igen</button>');
         b.onclick = init; view.appendChild(b);
       }
@@ -1283,8 +1340,8 @@
       }
       const overlay = el(
         '<div class="modal-overlay">' +
-          '<div class="modal">' +
-            '<div class="modal-title">' + esc(m.title) + '</div>' +
+          '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">' +
+            '<div class="modal-title" id="modalTitle">' + esc(m.title) + '</div>' +
             '<div class="modal-text">' + esc(m.text) + '</div>' +
             inputHTML +
             '<div class="modal-actions">' +
@@ -1307,6 +1364,17 @@
       };
       overlay.querySelector('#confirm').onclick = doConfirm;
       overlay.onclick = function (e) { if (e.target === overlay) closeModal(); };
+      // Escape stänger; Tab hålls inom dialogen (minimal fokusfälla).
+      overlay.onkeydown = function (e) {
+        if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+        if (e.key === 'Tab') {
+          const focusables = overlay.querySelectorAll('button, input');
+          if (!focusables.length) return;
+          const first = focusables[0], last = focusables[focusables.length - 1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      };
       document.body.appendChild(overlay);
       if (m.input) {
         const inp = overlay.querySelector('#modalInput');
@@ -1314,6 +1382,10 @@
           inp.focus();
           inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); doConfirm(); } };
         }
+      } else {
+        // Fokus på dialogen (inte bekräfta-knappen) — titeln annonseras och
+        // farliga åtgärder kan inte råka bekräftas med ett oavsiktligt Enter.
+        overlay.querySelector('.modal').focus();
       }
     }
 
@@ -1419,14 +1491,14 @@
             '</div>' +
           '</div>'
         );
-        card.onclick = function () { if (!state.switchingProgram) selectProgram(p.name); };
+        makeActionable(card, function () { if (!state.switchingProgram) selectProgram(p.name); });
         parent.appendChild(card);
       });
     }
 
     function renderPassList(parent) {
       const weekNr = isoWeekNum(state.todayStr);
-      parent.appendChild(el('<div class="ghost-num" style="top:6px">' + weekNr + '</div>'));
+      parent.appendChild(el('<div class="ghost-num" aria-hidden="true" style="top:6px">' + weekNr + '</div>'));
       // Tillbaka till programlistan (visas bara när det finns fler än ett program).
       if (state.programs && state.programs.length > 1) {
         const back = el('<button class="btn-back">‹ Dina program</button>');
@@ -1444,13 +1516,13 @@
       if (state.weeks && state.weeks.length > 1) {
         const wIdx = state.weeks.indexOf(state.currentWeek);
         const lastWk = state.weeks[state.weeks.length - 1];
-        const btn = 'background:none;border:1px solid rgba(255,255,255,.18);color:#fff;width:34px;height:34px;border-radius:9px;font-size:20px;line-height:1;cursor:pointer;';
+        const btn = 'background:none;border:1px solid rgba(255,255,255,.18);color:#fff;width:44px;height:44px;border-radius:9px;font-size:20px;line-height:1;cursor:pointer;';
         const wkCard = el(
           '<div class="stat-card">' +
             '<div class="stat-card-row" style="align-items:center">' +
-              '<button id="wkPrev" style="' + btn + (wIdx <= 0 ? 'opacity:.25;cursor:default;' : '') + '">‹</button>' +
+              '<button id="wkPrev" aria-label="Föregående programvecka" style="' + btn + (wIdx <= 0 ? 'opacity:.25;cursor:default;' : '') + '"' + (wIdx <= 0 ? ' disabled' : '') + '>‹</button>' +
               '<span class="stat-card-label">Programvecka ' + esc(String(state.currentWeek)) + ' / ' + esc(String(lastWk)) + (state.changingWeek ? ' …' : '') + '</span>' +
-              '<button id="wkNext" style="' + btn + (wIdx >= state.weeks.length - 1 ? 'opacity:.25;cursor:default;' : '') + '">›</button>' +
+              '<button id="wkNext" aria-label="Nästa programvecka" style="' + btn + (wIdx >= state.weeks.length - 1 ? 'opacity:.25;cursor:default;' : '') + '"' + (wIdx >= state.weeks.length - 1 ? ' disabled' : '') + '>›</button>' +
             '</div>' +
           '</div>'
         );
@@ -1471,7 +1543,7 @@
             '<span class="stat-card-label">' + doneCount + ' av ' + state.program.length + ' pass klara</span>' +
             (state.weekVolume > 0 ? '<span class="stat-card-value num">' + esc(fmtVolume(state.weekVolume)) + ' kg</span>' : '') +
           '</div>' +
-          '<div class="seg-bar">' + segs + '</div>' +
+          '<div class="seg-bar" aria-hidden="true">' + segs + '</div>' +
         '</div>'
       ));
 
@@ -1509,13 +1581,13 @@
             '</div>' +
           '</div>'
         );
-        card.onclick = function () {
+        makeActionable(card, function () {
           state.selectedPassIdx = idx;
           if (isActive) state.view = 'passDetailActive';
           else state.view = 'passDetailIdle';
           render();
           if (!isActive) ensureLastSessionLoaded(p.pass);
-        };
+        });
         parent.appendChild(card);
       });
 
@@ -1560,7 +1632,7 @@
       const head = el(
         '<div class="stat-card-row">' +
           '<span class="stat-card-label">Förra gången · ' + esc(fmtDateMini(sess.date)) + prPart + '</span>' +
-          '<button class="icon-btn danger" title="Ta bort senaste passet">✕</button>' +
+          '<button class="icon-btn danger" title="Ta bort senaste passet" aria-label="Ta bort senaste passet">✕</button>' +
         '</div>'
       );
       head.querySelector('.icon-btn').onclick = function () {
@@ -1621,7 +1693,7 @@
       }
 
       const g = passGhost(pass.pass);
-      if (g) parent.appendChild(el('<div class="ghost-num">' + g + '</div>'));
+      if (g) parent.appendChild(el('<div class="ghost-num" aria-hidden="true">' + g + '</div>'));
 
       const back = el('<button class="btn-back">‹ Veckans pass</button>');
       back.onclick = function () { history.back(); };
@@ -1649,24 +1721,38 @@
       ensureExerciseHistoryLoaded(pass.pass);
       renderLastSessionCard(parent, pass);
 
-      // Övningar med förra-gången-referens (eller programmål)
+      // Övningar: MÅL (vänster) mot FÖRRA (höger). Förra-platsen renderas alltid —
+      // skelett medan historiken laddar, värde eller "–" när den kommit — så att
+      // radhöjderna är stabila och inget hoppar när datan landar.
       const sess = state.lastSessionByPass[pass.pass];
+      const loadingPrev = (sess === null || sess === undefined);
       const sbe = (sess && sess.setsByExercise) || {};
-      const xlist = el('<div class="xlist" style="margin-top:4px"><div class="xlist-label">Övningar</div></div>');
+      const xlist = el('<div class="xlist" style="margin-top:4px"' + (loadingPrev ? ' aria-busy="true"' : '') + '>' +
+        '<div class="xlist-label">Övningar</div></div>');
       pass.exercises.forEach(function (ex) {
         const sets = sbe[ex.övning];
-        // Visa hela planen: en rad per segment (mål · set × reps @ vikt · RIR) + ev. notering.
-        let html = '<div class="xrow" style="cursor:default">' +
-          '<div class="xedge"></div>' +
-          '<div class="xmain">' +
-            '<div class="xname">' + esc(ex.övning) + '</div>';
+        let prevHtml;
+        if (loadingPrev) prevHtml = skMask('3×8 @ 70 kg');
+        else if (sets && sets.length > 0) prevHtml = esc(compressSets(sets));
+        else prevHtml = '–';
+        let goals = '';
         exSegments(ex).forEach(function (s) {
-          html += '<div class="xsub num">Mål · ' + esc(segTarget(s)) + '</div>';
-          if (s.notering) html += '<div class="xsub" style="opacity:.6;font-style:italic">' + esc(s.notering) + '</div>';
+          goals += '<div class="xsub num">' + esc(segTarget(s)) + '</div>';
+          if (s.notering) goals += '<div class="xsub xnote">' + esc(s.notering) + '</div>';
         });
-        if (sets && sets.length > 0) html += '<div class="xsub num" style="opacity:.55">Förra · ' + esc(compressSets(sets)) + '</div>';
-        html += '</div></div>';
-        xlist.appendChild(el(html));
+        xlist.appendChild(el(
+          '<div class="xrow" style="cursor:default">' +
+            '<div class="xedge" aria-hidden="true"></div>' +
+            '<div class="xmain">' +
+              '<div class="xname">' + esc(ex.övning) + '</div>' +
+              '<div class="xcols">' +
+                '<div class="xcol"><div class="xcol-label">Mål</div>' + goals + '</div>' +
+                '<div class="xcol xprev"><div class="xcol-label">Förra</div>' +
+                  '<div class="xsub num xprev-val">' + prevHtml + '</div></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        ));
       });
       parent.appendChild(xlist);
 
@@ -1716,7 +1802,7 @@
       appendSessionTopbar(parent);
 
       const g = passGhost(passKey);
-      if (g) parent.appendChild(el('<div class="ghost-num">' + g + '</div>'));
+      if (g) parent.appendChild(el('<div class="ghost-num" aria-hidden="true">' + g + '</div>'));
 
       parent.appendChild(el(
         '<div class="screen-head" style="margin-top:10px">' +
@@ -1747,7 +1833,7 @@
             '<span class="stat-card-label">' + doneEx + ' av ' + exercises.length + ' övningar klara</span>' +
             (volume > 0 ? '<span class="stat-card-value num">' + esc(fmtVolume(volume)) + ' kg</span>' : '') +
           '</div>' +
-          '<div class="glow-track"><div class="glow-fill" style="width:' + pct + '%"></div></div>' +
+          '<div class="glow-track" aria-hidden="true"><div class="glow-fill" style="width:' + pct + '%"></div></div>' +
         '</div>'
       ));
 
@@ -1775,7 +1861,7 @@
         else if (ex._adhoc) nameExtra += '<span class="xtag">Extra</span>';
         if (st === 'done') {
           cls = ' done';
-          nameExtra += '<span class="xcheck">✓</span>';
+          nameExtra += '<span class="xcheck" aria-hidden="true">✓</span>';
           sub = 'Klart · ' + esc(compressSets(done));
         } else if (st === 'current') {
           cls = ' current';
@@ -1799,7 +1885,7 @@
           }
         }
         const canEdit = done.length === 0;
-        const menuBtn = canEdit ? '<button class="icon-btn xmenu" title="Byt/ta bort övning">⋯</button>' : '';
+        const menuBtn = canEdit ? '<button class="icon-btn xmenu" title="Byt/ta bort övning" aria-label="Byt eller ta bort övning">⋯</button>' : '';
         const row = el(
           '<div class="xrow' + cls + '">' +
             '<div class="xedge"></div>' +
@@ -1808,16 +1894,16 @@
               '<div class="xsub num">' + sub + '</div>' +
             '</div>' +
             menuBtn +
-            '<span class="xchev">›</span>' +
+            '<span class="xchev" aria-hidden="true">›</span>' +
           '</div>'
         );
-        row.onclick = function () {
+        makeActionable(row, function () {
           state.selectedExerciseIdx = idx;
           state.currentSetNr = getCompletedFor(ex.övning).length + 1;
           state.editingSetNr = null;
           state.view = 'exercise';
           render();
-        };
+        });
         if (canEdit) {
           row.querySelector('.xmenu').onclick = function (e) {
             e.stopPropagation();
@@ -1981,7 +2067,7 @@
       appendSessionTopbar(parent);
 
       // Ghost-siffra: aktuellt set, svagt i bakgrunden
-      parent.appendChild(el('<div class="ghost-num">' + String(Math.min(state.currentSetNr, 99)).padStart(2, '0') + '</div>'));
+      parent.appendChild(el('<div class="ghost-num" aria-hidden="true">' + String(Math.min(state.currentSetNr, 99)).padStart(2, '0') + '</div>'));
 
       // Segmentet för aktuellt set styr mål/RIR/notering/förifyllning.
       const curSeg = segForSet(ex, state.currentSetNr);
@@ -2020,18 +2106,22 @@
       // FÖRRA | IDAG, set för set — aktivt set speglar inmatningen live
       const grid = document.createElement('div');
       grid.className = 'sg';
+      // Tabellsemantik på div-griden så skärmläsare får kolumnkontext per cell.
+      grid.setAttribute('role', 'table');
+      grid.setAttribute('aria-label', 'Set för ' + ex.övning);
       if (histLoading) {
+        grid.setAttribute('aria-busy', 'true');
         grid.appendChild(el(
-          '<div class="sg-head"><span></span>' +
-            '<span class="h-prev">' + skBar('70%', '0.7rem') + '</span>' +
-            '<span class="h-mal">Mål</span>' +
-            '<span class="h-today">Idag</span>' +
+          '<div class="sg-head" role="row"><span role="columnheader" aria-label="Set"></span>' +
+            '<span class="h-prev" role="columnheader">' + skBar('70%', '0.7rem') + '</span>' +
+            '<span class="h-mal" role="columnheader">Mål</span>' +
+            '<span class="h-today" role="columnheader">Idag</span>' +
           '</div>'
         ));
         const skRowCount = Math.max(ex.set || 3, 3);
         for (let i = 0; i < skRowCount; i++) {
           grid.appendChild(el(
-            '<div class="sg-row">' +
+            '<div class="sg-row" aria-hidden="true">' +
               '<div class="sg-setcell">' + skBar('60%', '1rem') + '</div>' +
               '<div>' + skBar('70%', '1rem') + '</div>' +
               '<div>' + skBar('70%', '1rem') + '</div>' +
@@ -2050,11 +2140,11 @@
           return esc(s.reps) + (s.målvikt !== null && s.målvikt !== undefined && s.målvikt !== '' ? ' × ' + esc(fmtNum(s.målvikt)) : '');
         };
         grid.appendChild(el(
-          '<div class="sg-head">' +
-            '<span></span>' +
-            '<span class="h-prev">' + (prevSession ? 'Förra · ' + esc(fmtDateMini(prevSession.datum)) : 'Förra') + '</span>' +
-            '<span class="h-mal">Mål</span>' +
-            '<span class="h-today">Idag</span>' +
+          '<div class="sg-head" role="row">' +
+            '<span role="columnheader" aria-label="Set"></span>' +
+            '<span class="h-prev" role="columnheader">' + (prevSession ? 'Förra · ' + esc(fmtDateMini(prevSession.datum)) : 'Förra') + '</span>' +
+            '<span class="h-mal" role="columnheader">Mål</span>' +
+            '<span class="h-today" role="columnheader">Idag</span>' +
           '</div>'
         ));
         for (let i = 0; i < rowCount; i++) {
@@ -2074,27 +2164,35 @@
           } else if (dSet) {
             rowCls = ' done editable';
             const prHTML = (dSet.pr && (dSet.pr.weightPR || dSet.pr.repPR)) ? '<span class="pr-pill">PR</span>' : '';
-            todayStr = '<span class="sg-check">✓</span><span>' + esc(fmtSetShort(dSet)) + '</span>' + prHTML + '<span class="sg-edit">✎</span>';
+            todayStr = '<span class="sg-check" aria-hidden="true">✓</span><span>' + esc(fmtSetShort(dSet)) + '</span>' + prHTML + '<span class="sg-edit" aria-hidden="true">✎</span>';
           } else if (setNr === state.currentSetNr && state.editingSetNr === null) {
             rowCls = ' active';
             setCell += '<span class="sg-tag">' + (setNr > ex.set ? 'Extra' : 'Pågår') + '</span>';
             todayStr = '<span id="sgLive">–</span>';
           }
           const rowEl = el(
-            '<div class="sg-row' + rowCls + '">' +
-              '<span class="sg-setcell">' + setCell + '</span>' +
-              '<span class="sg-prev num">' + prevStr + '</span>' +
-              '<span class="sg-mal num">' + malStr + '</span>' +
-              '<span class="sg-today num">' + todayStr + '</span>' +
+            '<div class="sg-row' + rowCls + '" role="row">' +
+              '<span class="sg-setcell" role="cell">' + setCell + '</span>' +
+              '<span class="sg-prev num" role="cell">' + prevStr + '</span>' +
+              '<span class="sg-mal num" role="cell">' + malStr + '</span>' +
+              '<span class="sg-today num" role="cell">' + todayStr + '</span>' +
             '</div>'
           );
           if (dSet && !editingThis) {
-            rowEl.onclick = function () { state.editingSetNr = setNr; render(); };
+            // Behåll rad-rollen (tabellsemantik) men gör raden fokuserbar och
+            // aktiverbar med Enter/Space — öppnar redigering av loggat set.
+            const startEdit = function () { state.editingSetNr = setNr; render(); };
+            rowEl.setAttribute('tabindex', '0');
+            rowEl.setAttribute('title', 'Redigera set ' + setNr);
+            rowEl.onclick = startEdit;
+            rowEl.onkeydown = function (e) {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); }
+            };
           }
           grid.appendChild(rowEl);
           if (dSet && dSet.kommentar) {
             grid.appendChild(el(
-              '<div class="sg-comment"><span class="pen">✎</span><span class="txt">”' + esc(dSet.kommentar) + '”</span></div>'
+              '<div class="sg-comment"><span class="pen" aria-hidden="true">✎</span><span class="txt">”' + esc(dSet.kommentar) + '”</span></div>'
             ));
           }
         }
@@ -2108,11 +2206,11 @@
           const unit = hasWeight ? ' kg' : '';
           const totTrend = (prevTotal > 0 && curTotal > 0) ? trendHTML(curTotal, prevTotal) : '';
           grid.appendChild(el(
-            '<div class="sg-row sg-total">' +
-              '<span class="sg-setlbl">Totalt</span>' +
-              '<span class="sg-prev num">' + (prevTotal > 0 ? esc(fmtVolume(prevTotal)) + unit : '–') + '</span>' +
-              '<span class="sg-mal num">&nbsp;</span>' +
-              '<span class="sg-today num">' + (curTotal > 0 ? esc(fmtVolume(curTotal)) + unit + totTrend : '–') + '</span>' +
+            '<div class="sg-row sg-total" role="row">' +
+              '<span class="sg-setlbl" role="cell">Totalt</span>' +
+              '<span class="sg-prev num" role="cell">' + (prevTotal > 0 ? esc(fmtVolume(prevTotal)) + unit : '–') + '</span>' +
+              '<span class="sg-mal num" role="cell">&nbsp;</span>' +
+              '<span class="sg-today num" role="cell">' + (curTotal > 0 ? esc(fmtVolume(curTotal)) + unit + totTrend : '–') + '</span>' +
             '</div>'
           ));
         }
@@ -2165,22 +2263,22 @@
       const form = el(
         '<form>' +
           '<div class="w-row">' +
-            '<button type="button" class="step-btn" id="wDn">–</button>' +
+            '<button type="button" class="step-btn" id="wDn" aria-label="Minska vikt 2,5 kg">–</button>' +
             '<div class="w-input-wrap">' +
-              '<input id="vikt" class="w-input" inputmode="decimal" maxlength="6" value="' + esc(defaultVikt) + '" placeholder="–" title="Vikt (kg) — tomt = kroppsvikt">' +
-              '<span class="w-unit">kg</span>' +
+              '<input id="vikt" class="w-input" inputmode="decimal" maxlength="6" value="' + esc(defaultVikt) + '" placeholder="–" title="Vikt (kg) — tomt = kroppsvikt" aria-label="Vikt i kilogram (tomt = kroppsvikt)">' +
+              '<span class="w-unit" aria-hidden="true">kg</span>' +
             '</div>' +
-            '<button type="button" class="step-btn plus" id="wUp">+</button>' +
+            '<button type="button" class="step-btn plus" id="wUp" aria-label="Öka vikt 2,5 kg">+</button>' +
           '</div>' +
           '<div class="r-row">' +
-            '<span class="r-label">Reps</span>' +
-            '<button type="button" class="step-btn sm" id="rDn">–</button>' +
-            '<input id="reps" class="r-input" inputmode="numeric" maxlength="3" value="' + esc(defaultReps) + '">' +
-            '<button type="button" class="step-btn sm plus" id="rUp">+</button>' +
+            '<span class="r-label" id="repsLabel">Reps</span>' +
+            '<button type="button" class="step-btn sm" id="rDn" aria-label="Minska reps">–</button>' +
+            '<input id="reps" class="r-input" inputmode="numeric" maxlength="3" value="' + esc(defaultReps) + '" aria-labelledby="repsLabel">' +
+            '<button type="button" class="step-btn sm plus" id="rUp" aria-label="Öka reps">+</button>' +
           '</div>' +
           '<div class="c-row">' +
-            '<span class="pen">✎</span>' +
-            '<input id="komm" class="c-input" value="' + esc(defaultKomm) + '" placeholder="Kommentar (valfri) — t.ex. RPE, känsla …">' +
+            '<span class="pen" aria-hidden="true">✎</span>' +
+            '<input id="komm" class="c-input" value="' + esc(defaultKomm) + '" placeholder="Kommentar (valfri) — t.ex. RPE, känsla …" aria-label="Kommentar (valfri)">' +
           '</div>' +
           '<button type="submit" class="btn-save' + saveGlow + '" id="save">' + esc(saveLabel) + '</button>' +
           (editing ? '<button type="button" class="btn btn-secondary" id="cancelEdit" style="margin-top:8px">Avbryt redigering</button>' : '') +
@@ -2351,7 +2449,7 @@
 
       parent.appendChild(el(
         '<div class="summary-card">' +
-          '<div class="summary-icon">✓</div>' +
+          '<div class="summary-icon" aria-hidden="true">✓</div>' +
           '<div class="summary-name">' + esc(s.pass) + '</div>' +
           '<div class="summary-time num">' + s.duration + ' min · avslutat ' + esc(fmtTime(s.endedAt)) + '</div>' +
           '<div class="summary-stats">' +
@@ -2407,9 +2505,9 @@
       }
 
       if (loading) {
-        parent.appendChild(el('<div class="stat-card"><div class="stat-card-row">' + skBar('45%', '0.85rem') + '</div></div>'));
+        parent.appendChild(el('<div class="stat-card" aria-busy="true"><div class="stat-card-row">' + skBar('45%', '0.85rem') + '</div></div>'));
         parent.appendChild(el(
-          '<div class="xlist">' +
+          '<div class="xlist" aria-busy="true">' +
             '<div class="xlist-label" style="margin-top:14px">' + skBar('40%', '0.7rem') + '</div>' +
             skRows(5) +
           '</div>'
@@ -2455,10 +2553,10 @@
               '<div class="xsub num">' + esc(subParts.join(' · ')) + '</div>' +
             '</div>' +
             '<span class="pcard-tag">' + esc(fmtDateMini(it.date)) + '</span>' +
-            '<span class="xchev">›</span>' +
+            '<span class="xchev" aria-hidden="true">›</span>' +
           '</div>'
         );
-        row.onclick = function () { openSessionDetail(it); };
+        makeActionable(row, function () { openSessionDetail(it); });
         list.appendChild(row);
       });
       parent.appendChild(list);
@@ -2473,7 +2571,7 @@
       parent.appendChild(back);
 
       const g = passGhost(it.pass);
-      if (g) parent.appendChild(el('<div class="ghost-num">' + g + '</div>'));
+      if (g) parent.appendChild(el('<div class="ghost-num" aria-hidden="true">' + g + '</div>'));
 
       const timeSub = (it.startTime && it.endTime)
         ? '<div class="screen-sub num">' + esc(fmtTime(it.startTime)) + '–' + esc(fmtTime(it.endTime)) + '</div>'
@@ -2501,6 +2599,7 @@
       const detail = state.sessionDetailCache[histId(it)];
       const xlist = el('<div class="xlist"><div class="xlist-label">Övningar</div></div>');
       if (detail === null || detail === undefined) {
+        xlist.setAttribute('aria-busy', 'true');
         xlist.innerHTML += skRows(4);
         parent.appendChild(xlist);
         return;
