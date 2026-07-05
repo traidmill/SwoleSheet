@@ -772,6 +772,7 @@
       changingWeek: false,        // true medan veckobyte laddar
       program: null,
       passLastDate: {},
+      weekDoneByPass: null,       // klart per pass för vald PROGRAMVECKA (null = kalendervecka gäller)
       weekVolume: 0,
       weekStart: '',
       activeSession: null,
@@ -878,6 +879,9 @@
       return mon.getDate() + ' ' + MONTHS_SHORT[mon.getMonth()] + ' – ' + sun.getDate() + ' ' + MONTHS_SHORT[sun.getMonth()];
     }
     function isDoneThisWeek(passName) {
+      // Veckoprogression: klart = avslutad session för vald programvecka (Sessions
+      // är sanningen). Annars: senast loggad denna kalendervecka.
+      if (state.weekDoneByPass) return !!state.weekDoneByPass[passName];
       const d = state.passLastDate[passName];
       return !!d && d >= weekStartStr();
     }
@@ -890,6 +894,7 @@
         .withSuccessHandler(function (st) {
           st = st || {};
           state.passLastDate = st.lastDateByPass || {};
+          state.weekDoneByPass = st.weekDoneByPass || null;
           state.weekVolume = st.weekVolume || 0;
           state.weekStart = st.weekStart || '';
           render();
@@ -1427,6 +1432,7 @@
           state.currentWeek = d.currentWeek || 1;
           const st = d.listStats || {};
           state.passLastDate = st.lastDateByPass || {};
+          state.weekDoneByPass = st.weekDoneByPass || null;
           state.weekVolume = st.weekVolume || 0;
           state.weekStart = st.weekStart || '';
           state.activeSession = d.activeSession || null;
@@ -1461,6 +1467,12 @@
           state.currentWeek = d.week || week;
           if (d.weeks) state.weeks = d.weeks;
           state.program = d.program || state.program;
+          if (d.listStats) {
+            state.passLastDate = d.listStats.lastDateByPass || {};
+            state.weekDoneByPass = d.listStats.weekDoneByPass || null;
+            state.weekVolume = d.listStats.weekVolume || 0;
+            state.weekStart = d.listStats.weekStart || '';
+          }
           render();
         })
         .withFailureHandler(function (err) {
@@ -1999,6 +2011,12 @@
                       state.currentWeek = d.week || nw;
                       if (d.weeks) state.weeks = d.weeks;
                       state.program = d.program || state.program;
+                      if (d.listStats) {
+                        state.passLastDate = d.listStats.lastDateByPass || {};
+                        state.weekDoneByPass = d.listStats.weekDoneByPass || null;
+                        state.weekVolume = d.listStats.weekVolume || 0;
+                        state.weekStart = d.listStats.weekStart || '';
+                      }
                       toast('Veckan klar — programvecka framflyttad till vecka ' + (d.week || nw), 'success');
                       render();
                     })
@@ -2670,6 +2688,7 @@
       state.lastSessionByPass = {};
       state.exerciseHistoryByPass = {};
       state.passLastDate = {};
+      state.weekDoneByPass = null;
       state.weekVolume = 0;
       state.weekStart = '';
       state.activeSession = null;
@@ -2688,6 +2707,7 @@
           state.activeSession = d.activeSession || null;
           const st = d.listStats || {};
           state.passLastDate = st.lastDateByPass || {};
+          state.weekDoneByPass = st.weekDoneByPass || null;
           state.weekVolume = st.weekVolume || 0;
           state.weekStart = st.weekStart || '';
           if (state.activeSession) {

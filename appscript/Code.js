@@ -376,7 +376,7 @@ function setActiveProgram(programName) {
   return {
     activeProgram: name,
     program: bundle.program,
-    listStats: getListStats(name),
+    listStats: _listStatsFromCols(_readLoggCols(), name, _weekStatsFor(name, bundle)),
     activeSession: getActiveSession(),
     weeks: bundle.weeks,
     currentWeek: bundle.currentWeek
@@ -404,7 +404,14 @@ function setCurrentWeek(programName, vecka) {
   PropertiesService.getDocumentProperties().setProperty(WEEK_KEY_PREFIX + name, String(v));
   // Om veckan justerades (ogiltig) behöver vi rätt veckas rader.
   const bundle = (v === Number(vecka)) ? probe : _programBundle(name, v);
-  return { week: v, weeks: bundle.weeks, program: bundle.program };
+  // Ny vecka → ny klart-status; skickas med så listvyn slipper ett extra anrop.
+  const weekStats = (bundle.weeks && bundle.weeks.length > 1) ? _weekSessionStats(name, v) : null;
+  return {
+    week: v,
+    weeks: bundle.weeks,
+    program: bundle.program,
+    listStats: _listStatsFromCols(_readLoggCols(), name, weekStats)
+  };
 }
 
 // --- public API: program ---
@@ -539,7 +546,7 @@ function getInitData() {
     program: bundle.program,
     activeSession: activeSession,
     completedSets: activeSession ? _completedSetsFromCols(loggCols, activeSession.passId) : null,
-    listStats: _listStatsFromCols(loggCols, activeProgram),
+    listStats: _listStatsFromCols(loggCols, activeProgram, _weekStatsFor(activeProgram, bundle)),
     weeks: bundle.weeks,
     currentWeek: bundle.currentWeek
   };
@@ -558,13 +565,17 @@ function _listProgramsWithMeta() {
 }
 
 // Listvyns data i en enda Logg-läsning: senaste datum per pass +
-// veckans loggade volym (måndag–söndag, kroppsviktsset räknas ej i kg).
+// veckans loggade volym (kroppsviktsset räknas ej i kg). För program med
+// veckoprogression räknas "klart" och volym per PROGRAMVECKA (via Sessions),
+// annars per kalendervecka (måndag–söndag).
 function getListStats(programName) {
-  return _listStatsFromCols(_readLoggCols(), programName);
+  const program = programName || _getActiveProgram();
+  return _listStatsFromCols(_readLoggCols(), program, _weekStatsFor(program));
 }
 
 // Som getListStats men mot en redan inläst Logg — delas i getInitData.
-function _listStatsFromCols(c, programName) {
+// weekStats (valfri, från _weekStatsFor) växlar veckosemantiken till programvecka.
+function _listStatsFromCols(c, programName, weekStats) {
   const now = new Date();
   const dayIdx = (now.getDay() + 6) % 7; // 0 = måndag
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayIdx);
@@ -580,14 +591,58 @@ function _listStatsFromCols(c, programName) {
     const pass = String(row[c.cPass]).trim();
     const dStr = _dateKey(row[c.cDatum]);
     if (!lastDateByPass[pass] || dStr > lastDateByPass[pass]) lastDateByPass[pass] = dStr;
-    if (dStr >= weekStart) {
+    const inWeek = weekStats
+      ? (c.cPassId !== undefined && weekStats.passIds[_normalizePassId(row[c.cPassId])])
+      : dStr >= weekStart;
+    if (inWeek) {
       const set = _rowToSet(row, c);
       if (set.vikt !== null && set.vikt !== undefined && set.vikt !== '') {
         weekVolume += (Number(set.reps) || 0) * Number(set.vikt);
       }
     }
   });
-  return { lastDateByPass: lastDateByPass, weekVolume: weekVolume, weekStart: weekStart };
+  return {
+    lastDateByPass: lastDateByPass,
+    weekVolume: weekVolume,
+    weekStart: weekStart,
+    weekDoneByPass: weekStats ? weekStats.doneByPass : null
+  };
+}
+
+// Programveckans status om programmet har veckoprogression, annars null (kalender-
+// veckans logik gäller då). bundle = valfri redan inläst _programBundle (sparar en läsning).
+function _weekStatsFor(programName, bundle) {
+  const b = bundle || _programBundle(programName);
+  if (!b.weeks || b.weeks.length <= 1) return null;
+  return _weekSessionStats(programName, b.currentWeek);
+}
+
+// Klart-status per pass för en programvecka. Sessions är sanningen (samma semantik
+// som _maybeAdvanceWeek): pass → true om minst en AVSLUTAD session finns för
+// programmet + veckan. passIds = veckans sessions-ID:n, så volymen kan räknas ur Logg.
+// Sessioner loggade innan Vecka-kolumnen fanns räknas aldrig som klara.
+function _weekSessionStats(programName, week) {
+  const out = { doneByPass: {}, passIds: {} };
+  const s = _readSessionsSheet();
+  if (!s) return out;
+  const cPass = s.colMap['Pass'];
+  const cProg = s.colMap['Program'];
+  const cSlut = s.colMap['Slut-tid'];
+  const cVecka = s.colMap['Vecka'];
+  const cId = s.colMap['Pass-ID'];
+  if (cVecka === undefined || cPass === undefined || cSlut === undefined) return out;
+  const defaultProgram = _defaultProgramName();
+  s.rows.forEach(function (row) {
+    if (_normalizeProgram(cProg === undefined ? '' : row[cProg], defaultProgram) !== programName) return;
+    if (Number(row[cVecka]) !== Number(week)) return;
+    if (row[cSlut] === '' || row[cSlut] === null) return; // ej avslutad
+    out.doneByPass[String(row[cPass]).trim()] = true;
+    if (cId !== undefined) {
+      const id = _normalizePassId(row[cId]);
+      if (id) out.passIds[id] = true;
+    }
+  });
+  return out;
 }
 
 // Senaste sessionerna för ALLA övningar i ett pass i ett anrop —
