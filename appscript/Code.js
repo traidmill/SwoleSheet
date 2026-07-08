@@ -14,12 +14,19 @@ const ACTIVE_PROGRAM_KEY = 'activeProgram';
 const WEEK_KEY_PREFIX = 'week:';
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  // createTemplateFromFile + evaluate krävs för att <?!= include(...) ?> ska köras
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
     .setTitle('SwoleSheet')
     .setFaviconUrl('https://traidmill.github.io/SwoleSheet/icon-192-v4.png')
     // Tillåt iframe-inbäddning (Google Sites) — döljer Apps Script-bannern
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+}
+
+// Server-side include av HTML-partial (Stylesheet.html, JavaScript.html).
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 // TILLFÄLLIG: skapar/återskapar fliken "Program: Bänk & Chins" med vecko-progression
