@@ -1,4 +1,10 @@
   <script>
+    // Säg till PWA-wrappern att appen laddat (Apps Script kör oss i en nästlad
+    // sandbox-iframe, så wrappern är window.top — inte window.parent).
+    try {
+      if (window.top !== window) window.top.postMessage('swolesheet:ready', '*');
+    } catch (e) { /* fristående läge utan wrapper */ }
+
     const state = {
       view: 'loading',
       programs: [],               // [{ name, sheetName, passCount }]
