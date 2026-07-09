@@ -65,8 +65,11 @@
       || navigator.standalone === true;
     const failedAt = Number(localStorage.getItem(FAILED_KEY) || 0);
     const recentFailure = failedAt && (Date.now() - failedAt) < RETRY_AFTER_MS;
+    // ?embed i adressen tvingar ett inbäddningsförsök trots färskt misslyckande —
+    // diagnosväg för att skilja cache/flagga från äkta cookie-blockering.
+    const forceEmbed = new URLSearchParams(location.search).has('embed');
 
-    if (recentFailure) {
+    if (recentFailure && !forceEmbed) {
       goDirect();
     } else {
       // Kortare timeout när inbäddat läge nyligen strulat men 24 h passerat —
