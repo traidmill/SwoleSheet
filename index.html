@@ -28,97 +28,88 @@
       border: 0; border-radius: 12px; padding: 14px 28px; font-size: 16px; font-weight: 600;
       font-family: inherit; cursor: pointer;
     }
-    #loginBtn, #openBtn { background: #E8E9EB; color: #0B0C0E; }
-    #retryBtn { background: transparent; color: #9BA0A8; text-decoration: underline; padding: 8px; font-weight: 400; font-size: 14px; }
+    #openBtn { background: #E8E9EB; color: #0B0C0E; }
     .spinner {
       width: 28px; height: 28px; border-radius: 50%;
       border: 3px solid #2A2D33; border-top-color: #E8E9EB;
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    /* loading: bara spinnern; login/open: text + relevanta knappar */
+    /* loading: bara spinnern; open: text + knapp */
     [data-mode="loading"] h1, [data-mode="loading"] p, [data-mode="loading"] button { display: none; }
-    [data-mode="login"] .spinner, [data-mode="login"] .open-only { display: none; }
-    [data-mode="open"] .spinner, [data-mode="open"] .login-only { display: none; }
+    [data-mode="open"] .spinner { display: none; }
   </style>
 </head>
 <body>
   <div id="boot" data-mode="loading">
     <div class="spinner"></div>
-    <h1 class="login-only">Kunde inte ladda SwoleSheet</h1>
-    <p class="login-only">Troligen har Google loggat ut dig. Tryck nedan så öppnas appen direkt med inloggning — SwoleSheet kommer ihåg det här läget till nästa gång.</p>
-    <button id="loginBtn" class="login-only" type="button">Logga in med Google</button>
-    <button id="retryBtn" class="login-only" type="button">Försök igen</button>
-    <h1 class="open-only">SwoleSheet</h1>
-    <p class="open-only">Vill du installera appen? Gör det via webbläsarens meny (Lägg till på startskärmen) innan du öppnar.</p>
-    <button id="openBtn" class="open-only" type="button">Öppna SwoleSheet</button>
+    <h1>SwoleSheet</h1>
+    <p>Appen kunde inte laddas inbäddad — öppna den direkt nedan (logga in där om du blir tillfrågad). Vill du installera appen? Gör det via webbläsarens meny (Lägg till på startskärmen) innan du öppnar.</p>
+    <button id="openBtn" type="button">Öppna SwoleSheet</button>
   </div>
 
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
     const EXEC_URL = 'https://script.google.com/macros/s/AKfycbzea4Z6Nzkz3SecXaHU4lFQHLIKHv-3Kb4aqmmrXboybmXRx-mqf_sGbf0NnahKwnfS/exec';
-    // Enheter som blockerar tredjeparts-cookies kan aldrig autentisera i iframen.
-    // När det upptäckts en gång går alla framtida starter direkt till appen
-    // (förstapartsläge) utan väntetid.
-    const DIRECT_KEY = 'swolesheet-direct-mode';
+    // Inbäddat läge (iframe) är förstahandsvalet — det döljer Apps Script-bannern
+    // och Androids flikrubrik. Misslyckas det (utloggad, eller tredjeparts-cookies
+    // blockerade) faller vi tillbaka till direktläge och minns misslyckandet i
+    // 24 h så starter under tiden slipper vänta på timeouten.
+    const FAILED_KEY = 'swolesheet-embed-failed-at';
+    const RETRY_AFTER_MS = 24 * 3600 * 1000;
+    const boot = document.getElementById('boot');
     // Auto-hoppet gäller bara i installerad app (standalone) — i en vanlig
     // webbläsarflik skulle det hinna före både installations-popup och meny.
     const isStandalone = matchMedia('(display-mode: standalone)').matches
       || navigator.standalone === true;
-    if (localStorage.getItem(DIRECT_KEY)) {
+    const failedAt = Number(localStorage.getItem(FAILED_KEY) || 0);
+    const recentFailure = failedAt && (Date.now() - failedAt) < RETRY_AFTER_MS;
+
+    if (recentFailure) {
+      goDirect();
+    } else {
+      // Kortare timeout när inbäddat läge nyligen strulat men 24 h passerat —
+      // värt ett nytt försök, men inte en lång väntan.
+      initEmbedded(failedAt ? 5000 : 8000);
+    }
+
+    function goDirect() {
       if (isStandalone) {
         location.replace(EXEC_URL);
       } else {
-        document.getElementById('boot').dataset.mode = 'open';
+        boot.dataset.mode = 'open';
         document.getElementById('openBtn').addEventListener('click', function () {
           location.href = EXEC_URL;
         });
       }
-    } else {
-      initEmbedded();
     }
 
-    function initEmbedded() {
+    function initEmbedded(timeoutMs) {
       // Appen (JavaScript.html) postar 'swolesheet:ready' till window.top när den
       // laddat. Uteblir signalen har iframen fastnat på Googles inloggnings-
       // redirect; iframen hålls dold tills signalen kommit så felsidan aldrig syns.
-      const READY_TIMEOUT_MS = 8000;
-      const boot = document.getElementById('boot');
       const appFrame = document.createElement('iframe');
       appFrame.allow = 'clipboard-write';
       appFrame.src = EXEC_URL;
       document.body.appendChild(appFrame);
       let appReady = false;
-      let timer = setTimeout(showLogin, READY_TIMEOUT_MS);
+      const timer = setTimeout(onTimeout, timeoutMs);
 
       window.addEventListener('message', function (e) {
         if (e.data !== 'swolesheet:ready') return;
         appReady = true;
         clearTimeout(timer);
+        localStorage.removeItem(FAILED_KEY);
         appFrame.classList.add('ready');
         boot.hidden = true;
       });
 
-      function showLogin() {
+      function onTimeout() {
         if (appReady) return;
-        boot.dataset.mode = 'login';
-        boot.hidden = false;
+        localStorage.setItem(FAILED_KEY, String(Date.now()));
+        goDirect();
       }
-
-      function retry() {
-        if (appReady) return;
-        boot.dataset.mode = 'loading';
-        clearTimeout(timer);
-        timer = setTimeout(showLogin, READY_TIMEOUT_MS);
-        appFrame.src = EXEC_URL;
-      }
-
-      document.getElementById('loginBtn').addEventListener('click', function () {
-        localStorage.setItem(DIRECT_KEY, '1');
-        location.href = EXEC_URL;
-      });
-      document.getElementById('retryBtn').addEventListener('click', retry);
     }
   </script>
 </body>
