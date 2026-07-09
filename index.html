@@ -28,7 +28,7 @@
       border: 0; border-radius: 12px; padding: 14px 28px; font-size: 16px; font-weight: 600;
       font-family: inherit; cursor: pointer;
     }
-    #loginBtn { background: #E8E9EB; color: #0B0C0E; }
+    #loginBtn, #openBtn { background: #E8E9EB; color: #0B0C0E; }
     #retryBtn { background: transparent; color: #9BA0A8; text-decoration: underline; padding: 8px; font-weight: 400; font-size: 14px; }
     .spinner {
       width: 28px; height: 28px; border-radius: 50%;
@@ -36,18 +36,22 @@
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    /* loading-läget: bara spinnern; login-läget: bara text + knappar */
+    /* loading: bara spinnern; login/open: text + relevanta knappar */
     [data-mode="loading"] h1, [data-mode="loading"] p, [data-mode="loading"] button { display: none; }
-    [data-mode="login"] .spinner { display: none; }
+    [data-mode="login"] .spinner, [data-mode="login"] .open-only { display: none; }
+    [data-mode="open"] .spinner, [data-mode="open"] .login-only { display: none; }
   </style>
 </head>
 <body>
   <div id="boot" data-mode="loading">
     <div class="spinner"></div>
-    <h1>Kunde inte ladda SwoleSheet</h1>
-    <p>Troligen har Google loggat ut dig. Tryck nedan så öppnas appen direkt med inloggning — SwoleSheet kommer ihåg det här läget till nästa gång.</p>
-    <button id="loginBtn" type="button">Logga in med Google</button>
-    <button id="retryBtn" type="button">Försök igen</button>
+    <h1 class="login-only">Kunde inte ladda SwoleSheet</h1>
+    <p class="login-only">Troligen har Google loggat ut dig. Tryck nedan så öppnas appen direkt med inloggning — SwoleSheet kommer ihåg det här läget till nästa gång.</p>
+    <button id="loginBtn" class="login-only" type="button">Logga in med Google</button>
+    <button id="retryBtn" class="login-only" type="button">Försök igen</button>
+    <h1 class="open-only">SwoleSheet</h1>
+    <p class="open-only">Vill du installera appen? Gör det via webbläsarens meny (Lägg till på startskärmen) innan du öppnar.</p>
+    <button id="openBtn" class="open-only" type="button">Öppna SwoleSheet</button>
   </div>
 
   <script>
@@ -58,8 +62,19 @@
     // När det upptäckts en gång går alla framtida starter direkt till appen
     // (förstapartsläge) utan väntetid.
     const DIRECT_KEY = 'swolesheet-direct-mode';
+    // Auto-hoppet gäller bara i installerad app (standalone) — i en vanlig
+    // webbläsarflik skulle det hinna före både installations-popup och meny.
+    const isStandalone = matchMedia('(display-mode: standalone)').matches
+      || navigator.standalone === true;
     if (localStorage.getItem(DIRECT_KEY)) {
-      location.replace(EXEC_URL);
+      if (isStandalone) {
+        location.replace(EXEC_URL);
+      } else {
+        document.getElementById('boot').dataset.mode = 'open';
+        document.getElementById('openBtn').addEventListener('click', function () {
+          location.href = EXEC_URL;
+        });
+      }
     } else {
       initEmbedded();
     }
