@@ -12,18 +12,19 @@
   <link rel="apple-touch-icon" href="icon-192-v4.png">
   <style>
     html, body { margin: 0; padding: 0; height: 100%; background: #0B0C0E; }
-    iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
-    #fallback {
+    iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; visibility: hidden; }
+    iframe.ready { visibility: visible; }
+    #boot {
       position: fixed; inset: 0; z-index: 10;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 14px; padding: 24px; text-align: center; box-sizing: border-box;
       background: #0B0C0E; color: #E8E9EB;
       font-family: system-ui, -apple-system, sans-serif;
     }
-    #fallback[hidden] { display: none; }
-    #fallback h1 { margin: 0; font-size: 22px; font-weight: 700; }
-    #fallback p { margin: 0; max-width: 320px; font-size: 15px; line-height: 1.5; color: #9BA0A8; }
-    #fallback button {
+    #boot[hidden] { display: none; }
+    #boot h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    #boot p { margin: 0; max-width: 320px; font-size: 15px; line-height: 1.5; color: #9BA0A8; }
+    #boot button {
       border: 0; border-radius: 12px; padding: 14px 28px; font-size: 16px; font-weight: 600;
       font-family: inherit; cursor: pointer;
     }
@@ -35,65 +36,75 @@
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    [data-mode="checking"] #loginBtn, [data-mode="checking"] #retryBtn, [data-mode="checking"] #loginHint { display: none; }
+    /* loading-läget: bara spinnern; login-läget: bara text + knappar */
+    [data-mode="loading"] h1, [data-mode="loading"] p, [data-mode="loading"] button { display: none; }
     [data-mode="login"] .spinner { display: none; }
   </style>
 </head>
 <body>
-  <iframe id="app" src="https://script.google.com/macros/s/AKfycbzea4Z6Nzkz3SecXaHU4lFQHLIKHv-3Kb4aqmmrXboybmXRx-mqf_sGbf0NnahKwnfS/exec" allow="clipboard-write"></iframe>
-
-  <div id="fallback" hidden data-mode="login">
+  <div id="boot" data-mode="loading">
     <div class="spinner"></div>
     <h1>Kunde inte ladda SwoleSheet</h1>
-    <p>Troligen har Google loggat ut dig. Logga in, kom sedan tillbaka hit — appen laddas om automatiskt.</p>
+    <p>Troligen har Google loggat ut dig. Tryck nedan så öppnas appen direkt med inloggning — SwoleSheet kommer ihåg det här läget till nästa gång.</p>
     <button id="loginBtn" type="button">Logga in med Google</button>
-    <p id="loginHint" style="font-size:13px">Inloggningen öppnas i en egen flik.</p>
     <button id="retryBtn" type="button">Försök igen</button>
   </div>
 
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
-    // Appen (JavaScript.html) postar 'swolesheet:ready' till window.top när den
-    // laddat. Uteblir signalen har iframen troligen fastnat på Googles
-    // inloggnings-redirect (accounts.google.com vägrar visas i iframe → grå felsida).
-    const EXEC_URL = document.getElementById('app').src;
-    const READY_TIMEOUT_MS = 8000;
-    const appFrame = document.getElementById('app');
-    const fallback = document.getElementById('fallback');
-    let appReady = false;
-    let timer = setTimeout(showFallback, READY_TIMEOUT_MS);
-
-    window.addEventListener('message', function (e) {
-      if (e.data !== 'swolesheet:ready') return;
-      appReady = true;
-      clearTimeout(timer);
-      fallback.hidden = true;
-    });
-
-    function showFallback() {
-      if (appReady) return;
-      fallback.dataset.mode = 'login';
-      fallback.hidden = false;
+    const EXEC_URL = 'https://script.google.com/macros/s/AKfycbzea4Z6Nzkz3SecXaHU4lFQHLIKHv-3Kb4aqmmrXboybmXRx-mqf_sGbf0NnahKwnfS/exec';
+    // Enheter som blockerar tredjeparts-cookies kan aldrig autentisera i iframen.
+    // När det upptäckts en gång går alla framtida starter direkt till appen
+    // (förstapartsläge) utan väntetid.
+    const DIRECT_KEY = 'swolesheet-direct-mode';
+    if (localStorage.getItem(DIRECT_KEY)) {
+      location.replace(EXEC_URL);
+    } else {
+      initEmbedded();
     }
 
-    function retry() {
-      if (appReady) return;
-      fallback.dataset.mode = 'checking'; // bara spinnern medan omladdningen pågår
-      clearTimeout(timer);
-      timer = setTimeout(showFallback, READY_TIMEOUT_MS);
+    function initEmbedded() {
+      // Appen (JavaScript.html) postar 'swolesheet:ready' till window.top när den
+      // laddat. Uteblir signalen har iframen fastnat på Googles inloggnings-
+      // redirect; iframen hålls dold tills signalen kommit så felsidan aldrig syns.
+      const READY_TIMEOUT_MS = 8000;
+      const boot = document.getElementById('boot');
+      const appFrame = document.createElement('iframe');
+      appFrame.allow = 'clipboard-write';
       appFrame.src = EXEC_URL;
+      document.body.appendChild(appFrame);
+      let appReady = false;
+      let timer = setTimeout(showLogin, READY_TIMEOUT_MS);
+
+      window.addEventListener('message', function (e) {
+        if (e.data !== 'swolesheet:ready') return;
+        appReady = true;
+        clearTimeout(timer);
+        appFrame.classList.add('ready');
+        boot.hidden = true;
+      });
+
+      function showLogin() {
+        if (appReady) return;
+        boot.dataset.mode = 'login';
+        boot.hidden = false;
+      }
+
+      function retry() {
+        if (appReady) return;
+        boot.dataset.mode = 'loading';
+        clearTimeout(timer);
+        timer = setTimeout(showLogin, READY_TIMEOUT_MS);
+        appFrame.src = EXEC_URL;
+      }
+
+      document.getElementById('loginBtn').addEventListener('click', function () {
+        localStorage.setItem(DIRECT_KEY, '1');
+        location.href = EXEC_URL;
+      });
+      document.getElementById('retryBtn').addEventListener('click', retry);
     }
-
-    document.getElementById('loginBtn').addEventListener('click', function () {
-      window.open(EXEC_URL, '_blank');
-    });
-    document.getElementById('retryBtn').addEventListener('click', retry);
-
-    // Tillbaka från inloggningsfliken → ladda om iframen automatiskt.
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden && !appReady && !fallback.hidden) retry();
-    });
   </script>
 </body>
 </html>
