@@ -1,7 +1,7 @@
 const PROGRAM_SHEET = 'Program';
 const LOGG_SHEET = 'Logg';
 const SESSIONS_SHEET = 'Sessions';
-const SESSION_HEADERS = ['Pass-ID', 'Pass', 'Datum', 'Start-tid', 'Slut-tid', 'Notering', 'Program', 'Vecka', 'Ändringar'];
+const SESSION_HEADERS = ['Pass-ID', 'Pass', 'Datum', 'Start-tid', 'Slut-tid', 'Notering', 'Program', 'Vecka', 'Cykel', 'Ändringar'];
 const TZ = Session.getScriptTimeZone();
 
 // Flera program = en flik per program. En flik är ett program om den heter exakt
@@ -12,6 +12,9 @@ const ACTIVE_PROGRAM_KEY = 'activeProgram';
 // Vecko-progression: programflikar kan ha en valfri 'Vecka'-kolumn (1..N).
 // Aktiv vecka per program lagras som 'week:<programnamn>' i DocumentProperties.
 const WEEK_KEY_PREFIX = 'week:';
+// Cykelräknare per program ('cycle:<programnamn>'): ökas när veckan wrappar från
+// sista till första — via auto-avancering eller manuell stegning förbi sista veckan.
+const CYCLE_KEY_PREFIX = 'cycle:';
 
 function doGet() {
   // createTemplateFromFile + evaluate krävs för att <?!= include(...) ?> ska köras
@@ -29,94 +32,104 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-// TILLFÄLLIG: skapar/återskapar fliken "Program: Bänk & Chins" med vecko-progression
-// (Block 1, 4 veckor) + RIR-kolumn. Flera set med olika vikter = separata segment-rader
-// (samma Ordning + Övning → grupperas till en övning i appen). Kalibrerat mot bänk-1RM
-// ~135 (ankare ur logg: 80kg~22RM, 100kg~12RM, 120kg~5RM) och viktade chins ~+50
-// (adderad vikt). Knäböj/mark submaximalt (diskbråck).
-function importBankChinsProgram() {
+// TILLFÄLLIG: återskapar fliken "Program: Bänk & Chins" med CYKEL 2 (designad
+// 2026-07-10 ur cykel 1-loggen, se plan/artifact). Flera set med olika vikter =
+// separata segment-rader (samma Ordning + Övning → grupperas i appen).
+// Cykel 2-ändringar: ~14–16 set/pass för 60-min-pass (dips struken från Pass 1,
+// superset A = militär+sidolyft, B = spidercurl+reverse flyes; rodd/pushdown och
+// benpasset körs raka set med kort vila), pump-bänk progressas via vikt i
+// 15–18-repsfönstret, spidercurl på reps (fast stång 30 kg), marklyft med
+// viktprogression. V1 försiktig återinkörning, V3 toppar över cykel 1.
+function importBankChinsCykel2() {
   const SHEET = 'Program: Bänk & Chins';
   const headers = ['Vecka', 'Pass', 'Ordning', 'Övning', 'Set', 'Reps', 'Målvikt', 'RIR', 'Notering'];
   // wk[i] = veckans segment (array). Segment = [Set, Reps, Målvikt(null=tom), RIR(null=tom), Notering].
   // null som vecka = hoppa över (t.ex. ingen utfall i deload).
   const PROGRAM = [
-    // --- Pass 1 (Mån) — Volym + primär chins ---
+    // --- Pass 1 — Tryck + chins (volym) · superset A = militärpress + sidolyft ---
     { pass: 'Pass 1', ord: 1, övn: 'Bänkpress', wk: [
-      [[4, '10', 95, 3, 'Volym, touch-and-go']],
-      [[4, '10', 97.5, 2, 'Volym']],
-      [[4, '10', 100, 1, 'Volym, tungt – reps får falla till 8–9']],
-      [[3, '8', 85, null, 'Deload, lätt']] ] },
+      [[4, '10', 97.5, 3, 'Volym, touch-and-go']],
+      [[4, '10', 100, 2, 'Volym']],
+      [[4, '10', 102.5, 1, 'Volym, tungt — reps får falla till 8–9']],
+      [[3, '8', 87.5, 3, 'Deload, lätt']] ] },
     { pass: 'Pass 1', ord: 2, övn: 'Viktade chins', wk: [
-      [[1, '5', 25, 3, 'Top-set'], [3, '8', 15, 3, 'Back-off, +volym']],
-      [[1, '5', 27.5, 3, 'Top-set'], [3, '8', 15, 3, 'Back-off, +volym']],
-      [[1, '4', 32.5, 1, 'Top-set'], [3, '8', 17.5, 1, 'Back-off']],
-      [[1, '5', 20, 3, 'Deload top-set'], [2, '6', 12.5, 3, 'Back-off']] ] },
-    { pass: 'Pass 1', ord: 3, övn: 'Viktade dips', wk: [
-      [[3, '10', 12.5, 2, 'Volym, kontrollerad ROM']],
-      [[3, '10', 15, 2, '']],
-      [[4, '8', 15, 2, '']],
-      [[2, '10', 10, 3, 'Deload']] ] },
-    { pass: 'Pass 1', ord: 4, övn: 'Militärpress', wk: [
-      [[3, '6', 50, 2, '']], [[3, '6', 52.5, 2, '']], [[4, '5', 55, 2, '']], [[2, '6', 45, 3, 'Deload']] ] },
-    { pass: 'Pass 1', ord: 5, övn: 'Sidolyft', wk: [
-      [[3, '15', null, 1, 'Sidodelt, RIR 1. Sista set myo-reps: aktivering till RIR 0, sedan 3–4 miniset à 3–5 rep']],
-      [[3, '15', null, 1, 'RIR 1, sista set myo-reps']],
-      [[3, '12', null, 0, 'RIR 0, sista set myo-reps']],
-      [[2, '15', null, 3, 'Deload']] ] },
+      [[1, '5', 27.5, 2, 'Top-set'], [3, '8', 17.5, 2, 'Back-off']],
+      [[1, '4', 32.5, 2, 'Top-set'], [3, '8', 17.5, 2, 'Back-off']],
+      [[1, '4', 35, 1, 'Top-set'], [3, '8', 20, 1, 'Back-off']],
+      [[1, '5', 22.5, 3, 'Deload top-set'], [2, '6', 12.5, 3, 'Back-off']] ] },
+    { pass: 'Pass 1', ord: 3, övn: 'Militärpress', wk: [
+      [[3, '6', 55, 2, 'Superset A med sidolyft']],
+      [[3, '6', 57.5, 2, 'Superset A med sidolyft']],
+      [[4, '5', 57.5, 1, 'Superset A med sidolyft']],
+      [[2, '6', 47.5, 3, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 4, övn: 'Sidolyft', wk: [
+      [[3, '15', 12, 1, 'Superset A. Sista set myo-reps']],
+      [[3, '12', 14, 1, 'Superset A. Sista set myo-reps']],
+      [[3, '12', 14, 0, 'Superset A. RIR 0, sista set myo-reps']],
+      [[2, '15', null, 3, 'Deload, lätt']] ] },
 
-    // --- Pass 2 (Ons) — Pump + sekundär chins ---
+    // --- Pass 2 — Pump · vila 60–90 s · superset B = spidercurl + reverse flyes ---
     { pass: 'Pass 2', ord: 1, övn: 'Bänkpress', wk: [
-      [[3, '18', 80, 2, 'Pump']], [[4, '20', 80, 2, 'Pump']], [[4, '22', 80, 1, 'Pump']], [[3, '15', 75, 3, 'Deload']] ] },
+      [[4, '15', 85, 2, 'Pump — vikt i 15–18-repsfönstret, reps får falla set för set']],
+      [[4, '16', 85, 2, 'Pump — RIR styr, reps får falla set för set']],
+      [[4, '15', 87.5, 1, 'Pump — håll RIR 1, reps får falla set för set']],
+      [[3, '12', 75, 3, 'Deload']] ] },
     { pass: 'Pass 2', ord: 2, övn: 'Viktade chins', wk: [
-      [[4, '7', 12.5, 3, '']], [[4, '8', 12.5, 3, '']], [[4, '8', 15, 2, '']], [[3, '8', 10, 3, 'Deload']] ] },
+      [[4, '8', 15, 3, '']], [[4, '9', 15, 2, '']], [[4, '8', 17.5, 2, '']], [[3, '8', 10, 3, 'Deload']] ] },
     { pass: 'Pass 2', ord: 3, övn: 'Maskinrodd', wk: [
-      [[3, '10', null, 2, 'Ställ vikt mot RIR 2']], [[4, '10', null, 2, '']], [[4, '8', null, 2, '']], [[3, '10', null, 3, 'Deload']] ] },
+      [[3, '10', null, 2, 'Ställ vikt mot RIR (ca 103)']],
+      [[4, '8', null, 2, 'Ställ vikt mot RIR (ca 105)']],
+      [[4, '8', null, 2, 'Ställ vikt mot RIR (ca 108)']],
+      [[3, '10', null, 3, 'Deload, lätt']] ] },
     { pass: 'Pass 2', ord: 4, övn: 'Spidercurl', wk: [
-      [[3, '12', 30, 1, 'RIR 1. Sista set myo-reps: aktivering till RIR 0, sedan 3–4 miniset à 3–5 rep']],
-      [[3, '14', 30, 1, 'RIR 1, sista set myo-reps']],
-      [[3, '12', 32.5, 0, 'RIR 0, sista set myo-reps']],
-      [[3, '12', 30, 3, 'Deload']] ] },
+      [[3, '15', 30, 1, 'Superset B. Fast stång 30 kg — progression på reps. Sista set myo-reps']],
+      [[3, '16', 30, 1, 'Superset B. Sista set myo-reps']],
+      [[3, '18', 30, 0, 'Superset B. RIR 0, sista set myo-reps']],
+      [[2, '12', 30, 3, 'Deload']] ] },
     { pass: 'Pass 2', ord: 5, övn: 'Reverse flyes', wk: [
-      [[3, '15', null, 1, 'Bakre delt, RIR 1. Sista set myo-reps: aktivering till RIR 0, sedan 3–4 miniset à 3–5 rep']],
-      [[3, '15', null, 1, 'RIR 1, sista set myo-reps']],
-      [[3, '12', null, 0, 'RIR 0, sista set myo-reps']],
-      [[2, '15', null, 3, 'Deload']] ] },
+      [[3, '15', 10, 1, 'Superset B. Sista set myo-reps']],
+      [[3, '13', 11, 1, 'Superset B. Sista set myo-reps']],
+      [[3, '12', 11, 0, 'Superset B. RIR 0, sista set myo-reps']],
+      null ] },
 
-    // --- Pass 3 (Fre) — Intensitet + sekundär chins ---
+    // --- Pass 3 — Tung bänk + rygg · superset C = stångrodd + pushdown ---
     { pass: 'Pass 3', ord: 1, övn: 'Bänkpress', wk: [
-      [[1, '5', 110, 2, 'Topp, touch-and-go'], [4, '8', 95, 2, 'Back-off, +volym (reps får krypa mot 10)']],
-      [[1, '4', 115, 2, 'Topp'], [4, '8', 100, 2, 'Back-off, +volym']],
-      [[1, '3', 120, 1, 'Topp'], [1, 'AMRAP', 110, null, 'Maxreps'], [3, '8', 100, 1, 'Back-off, +volym']],
-      [[1, '3', 105, 3, 'Deload topp'], [2, '6', 90, 3, 'Back-off']] ] },
+      [[1, '5', 112.5, 2, 'Topp, touch-and-go'], [3, '8', 100, 2, 'Back-off']],
+      [[1, '4', 117.5, 2, 'Topp'], [3, '8', 102.5, 2, 'Back-off']],
+      [[1, '3', 122.5, 1, 'Topp'], [1, 'AMRAP', 112.5, null, 'Maxreps — stanna vid teknikförfall'], [2, '8', 105, 1, 'Back-off']],
+      [[1, '3', 107.5, 3, 'Deload topp'], [2, '6', 92.5, 3, 'Back-off']] ] },
     { pass: 'Pass 3', ord: 2, övn: 'Viktade chins', wk: [
-      [[5, '5', 22.5, 2, 'Medeltung']], [[5, '5', 25, 2, '']], [[6, '4', 27.5, 1, '']], [[3, '5', 20, 3, 'Deload']] ] },
+      [[5, '5', 25, 2, 'Medeltung']], [[5, '5', 27.5, 2, 'Medeltung']], [[5, '4', 32.5, 1, 'Medeltung']], [[3, '5', 22.5, 3, 'Deload']] ] },
     { pass: 'Pass 3', ord: 3, övn: 'Viktade dips', wk: [
-      [[3, '8', 17.5, 2, 'Tyngre']], [[3, '8', 20, 2, '']], [[4, '6', 25, 1, '']], [[2, '8', 15, 3, 'Deload']] ] },
+      [[3, '8', 20, 2, '']], [[3, '7', 22.5, 2, '']], [[4, '6', 27.5, 1, '']], [[2, '8', 15, 3, 'Deload']] ] },
     { pass: 'Pass 3', ord: 4, övn: 'Stångrodd', wk: [
-      [[3, '12', 60, 2, '']], [[3, '12', 65, 2, '']], [[4, '10', 65, 2, '']], [[3, '12', 55, 3, 'Deload']] ] },
+      [[3, '12', 65, 2, 'Kort vila, ~90 s']],
+      [[3, '12', 67.5, 2, 'Kort vila, ~90 s']],
+      [[3, '10', 70, 2, 'Kort vila, ~90 s']],
+      [[2, '12', 55, 3, 'Deload']] ] },
     { pass: 'Pass 3', ord: 5, övn: 'Triceps-pushdown', wk: [
-      [[3, '12', null, 1, 'RIR 1. Sista set myo-reps: aktivering till RIR 0, sedan 3–4 miniset à 3–5 rep']],
-      [[3, '12', null, 1, 'RIR 1, sista set myo-reps']],
-      [[4, '10', null, 0, 'RIR 0, sista set myo-reps']],
-      [[2, '12', null, 3, 'Deload']] ] },
+      [[3, '12', 40, 1, 'Sista set myo-reps']],
+      [[3, '12', 42.5, 1, 'Sista set myo-reps']],
+      [[3, '10', 42.5, 0, 'RIR 0, sista set myo-reps']],
+      null ] },
 
-    // --- Pass 4 (Lör) — Ben (submaximalt, diskbråck) ---
+    // --- Pass 4 — Ben (submaximalt, diskbråck) · superset D = lårcurl + mage ---
     { pass: 'Pass 4', ord: 1, övn: 'Knäböj', wk: [
-      [[3, '6', 100, 3, 'Submax'], [1, '12', 80, 3, 'Back-off']],
-      [[4, '5', 105, 3, 'Submax'], [1, '12', 82.5, 3, 'Back-off']],
-      [[4, '5', 107.5, 2, 'Submax'], [1, '15', 82.5, 3, 'Back-off']],
-      [[3, '5', 90, 3, 'Deload']] ] },
+      [[3, '6', 105, 3, 'Submax'], [1, '12', 85, 3, 'Back-off']],
+      [[4, '5', 110, 2, 'Submax'], [1, '12', 85, 2, 'Back-off']],
+      [[4, '5', 112.5, 2, 'Submax'], [1, '15', 85, 2, 'Back-off']],
+      [[3, '5', 92.5, 3, 'Deload']] ] },
     { pass: 'Pass 4', ord: 2, övn: 'Marklyft', wk: [
-      [[3, '6', 120, 3, 'Kontrollerat']], [[3, '6', 125, 3, '']], [[3, '6', 130, 2, '']], [[2, '6', 110, 3, 'Deload']] ] },
+      [[3, '6', 132.5, 3, 'Kontrollerat']], [[3, '6', 135, 2, 'Kontrollerat']], [[3, '5', 137.5, 2, 'Kontrollerat']], [[2, '6', 115, 3, 'Deload']] ] },
     { pass: 'Pass 4', ord: 3, övn: 'Utfallssteg', wk: [
-      [[2, '10', 60, 2, '']], [[2, '10', 65, 2, '']], [[3, '8', 70, 2, '']], null ] },
+      [[2, '10', 65, 2, '']], [[2, '10', 70, 2, '']], [[3, '8', 72.5, 2, '']], null ] },
     { pass: 'Pass 4', ord: 4, övn: 'Lårcurl', wk: [
-      [[3, '12', null, 2, 'Valfri – baksida lår, ryggsnällt']],
-      [[3, '12', null, 2, 'Valfri']],
-      [[4, '10', null, 1, 'Valfri']],
-      [[2, '12', null, 3, 'Deload']] ] },
+      [[3, '12', 82.5, 2, 'Ställ vikt mot RIR. Kort vila']],
+      [[3, '12', 85, 2, 'Ställ vikt mot RIR. Kort vila']],
+      [[3, '10', 87.5, 1, 'Kort vila']],
+      [[2, '12', null, 3, 'Deload, lätt']] ] },
     { pass: 'Pass 4', ord: 5, övn: 'Cable crunch / Ab-wheel', wk: [
-      [[3, '12', null, 2, 'Bål']], [[3, '15', null, 2, '']], [[3, '12', null, 2, '']], [[3, '12', null, 3, 'Deload']] ] }
+      [[3, '15', 36, 2, 'Bål']], [[3, '12', 38, 2, 'Bål']], [[3, '12', 38, 2, 'Bål']], [[2, '12', null, 3, 'Deload']] ] }
   ];
 
   const rows = [];
@@ -386,7 +399,8 @@ function setActiveProgram(programName) {
     listStats: _listStatsFromCols(_readLoggCols(), name, _weekStatsFor(name, bundle)),
     activeSession: getActiveSession(),
     weeks: bundle.weeks,
-    currentWeek: bundle.currentWeek
+    currentWeek: bundle.currentWeek,
+    currentCycle: _getCycle(name)
   };
 }
 
@@ -403,18 +417,33 @@ function _getCurrentWeek(programName) {
   return _programBundle(programName).currentWeek;
 }
 
-function setCurrentWeek(programName, vecka) {
+function _getCycle(programName) {
+  const v = Number(PropertiesService.getDocumentProperties().getProperty(CYCLE_KEY_PREFIX + programName));
+  return (v && v >= 1) ? v : 1;
+}
+
+function _setCycle(programName, cykel) {
+  const v = Math.max(1, Math.round(Number(cykel) || 1));
+  PropertiesService.getDocumentProperties().setProperty(CYCLE_KEY_PREFIX + programName, String(v));
+  return v;
+}
+
+// cykel = valfri. Sätts när frontend wrappar manuellt (förbi sista veckan = ny cykel,
+// bakåt förbi första = tillbaka till förra cykeln) eller korrigerar cykelräknaren.
+function setCurrentWeek(programName, vecka, cykel) {
   const name = programName || _getActiveProgram();
   // En läsning för att validera veckan och hämta veckolistan + rätt veckas program.
   const probe = _programBundle(name, vecka);
   const v = (probe.weeks.indexOf(Number(vecka)) >= 0) ? Number(vecka) : probe.weeks[0];
   PropertiesService.getDocumentProperties().setProperty(WEEK_KEY_PREFIX + name, String(v));
+  if (cykel !== undefined && cykel !== null && cykel !== '') _setCycle(name, cykel);
   // Om veckan justerades (ogiltig) behöver vi rätt veckas rader.
   const bundle = (v === Number(vecka)) ? probe : _programBundle(name, v);
   // Ny vecka → ny klart-status; skickas med så listvyn slipper ett extra anrop.
   const weekStats = (bundle.weeks && bundle.weeks.length > 1) ? _weekSessionStats(name, v) : null;
   return {
     week: v,
+    cycle: _getCycle(name),
     weeks: bundle.weeks,
     program: bundle.program,
     listStats: _listStatsFromCols(_readLoggCols(), name, weekStats)
@@ -555,7 +584,8 @@ function getInitData() {
     completedSets: activeSession ? _completedSetsFromCols(loggCols, activeSession.passId) : null,
     listStats: _listStatsFromCols(loggCols, activeProgram, _weekStatsFor(activeProgram, bundle)),
     weeks: bundle.weeks,
-    currentWeek: bundle.currentWeek
+    currentWeek: bundle.currentWeek,
+    currentCycle: _getCycle(activeProgram)
   };
 }
 
@@ -844,6 +874,7 @@ function startPass(passName, programName) {
   _ensureTextColumn(sessions, 'Pass-ID');
   _ensureColumn(sessions, 'Program');
   _ensureColumn(sessions, 'Vecka');
+  _ensureColumn(sessions, 'Cykel');
   _ensureTextColumn(sessions, 'Ändringar');
   const logg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LOGG_SHEET);
   if (!logg) throw new Error('Fliken "' + LOGG_SHEET + '" hittades inte.');
@@ -857,6 +888,7 @@ function startPass(passName, programName) {
 
   const program = programName || _getActiveProgram();
   const vecka = _getCurrentWeek(program); // veckan passet tillhör — fryses vid start
+  const cykel = _getCycle(program);       // dito för cykeln
   const now = new Date();
   const passId = _passIdFromDate(now);
 
@@ -869,6 +901,7 @@ function startPass(passName, programName) {
     'Notering': '',
     'Program': program,
     'Vecka': vecka,
+    'Cykel': cykel,
     'Ändringar': ''
   });
 
@@ -878,7 +911,8 @@ function startPass(passName, programName) {
     date: _dateKey(now),
     startTime: now.toISOString(),
     program: program,
-    vecka: vecka
+    vecka: vecka,
+    cykel: cykel
   };
 }
 
@@ -943,8 +977,10 @@ function _maybeAdvanceWeek(programName, week) {
   if (!allDone) return null;
 
   const idx = weeks.indexOf(Number(week));
-  const nextWeek = (idx >= 0 && idx < weeks.length - 1) ? weeks[idx + 1] : weeks[0];
+  const wrapped = !(idx >= 0 && idx < weeks.length - 1);
+  const nextWeek = wrapped ? weeks[0] : weeks[idx + 1];
   PropertiesService.getDocumentProperties().setProperty(WEEK_KEY_PREFIX + programName, String(nextWeek));
+  if (wrapped) _setCycle(programName, _getCycle(programName) + 1); // sista veckan klar → ny cykel
   return nextWeek;
 }
 

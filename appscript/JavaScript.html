@@ -12,6 +12,7 @@
       switchingProgram: null,     // namn på program som laddas vid byte, annars null
       weeks: [1],                 // tillgängliga veckor i aktivt program
       currentWeek: 1,             // vald vecka (vecko-progression)
+      currentCycle: 1,            // cykel (varv genom programmets veckor), 1-baserad
       changingWeek: false,        // true medan veckobyte laddar
       program: null,
       passLastDate: {},
@@ -676,6 +677,7 @@
           state.program = d.program || [];
           state.weeks = d.weeks || [1];
           state.currentWeek = d.currentWeek || 1;
+          state.currentCycle = d.currentCycle || 1;
           const st = d.listStats || {};
           state.passLastDate = st.lastDateByPass || {};
           state.weekDoneByPass = st.weekDoneByPass || null;
@@ -703,14 +705,16 @@
     }
 
     // Byt programvecka (vecko-progression). Hämtar vald veckas målvikter/reps.
-    function changeWeek(week) {
-      if (state.changingWeek || week === state.currentWeek) return;
+    // cycle (valfri) sätter cykelräknaren — används vid wrap förbi första/sista veckan.
+    function changeWeek(week, cycle) {
+      if (state.changingWeek || (week === state.currentWeek && cycle === undefined)) return;
       state.changingWeek = true;
       render();
       google.script.run
         .withSuccessHandler(function (d) {
           state.changingWeek = false;
           state.currentWeek = d.week || week;
+          if (d.cycle) state.currentCycle = d.cycle;
           if (d.weeks) state.weeks = d.weeks;
           state.program = d.program || state.program;
           if (d.listStats) {
@@ -726,7 +730,7 @@
           toast('Kunde inte byta vecka: ' + (err && err.message ? err.message : err), 'error');
           render();
         })
-        .setCurrentWeek(state.activeProgram, week);
+        .setCurrentWeek(state.activeProgram, week, cycle === undefined ? null : cycle);
     }
 
     function renderProgramList(parent) {
@@ -792,21 +796,33 @@
       ));
 
       // Veckoväljare för program med vecko-progression (visas bara när >1 vecka).
+      // Stegning wrappar: förbi sista veckan = ny cykel (vecka 1), bakåt förbi
+      // första = förra cykelns sista vecka. Bakåt spärras bara på cykel 1 vecka 1.
       if (state.weeks && state.weeks.length > 1) {
         const wIdx = state.weeks.indexOf(state.currentWeek);
         const lastWk = state.weeks[state.weeks.length - 1];
+        const atFirst = wIdx <= 0;
+        const atLast = wIdx >= state.weeks.length - 1;
+        const canPrev = !atFirst || state.currentCycle > 1;
         const btn = 'background:none;border:1px solid rgba(255,255,255,.18);color:#fff;width:44px;height:44px;border-radius:9px;font-size:20px;line-height:1;cursor:pointer;';
         const wkCard = el(
           '<div class="stat-card">' +
             '<div class="stat-card-row" style="align-items:center">' +
-              '<button id="wkPrev" aria-label="Föregående programvecka" style="' + btn + (wIdx <= 0 ? 'opacity:.25;cursor:default;' : '') + '"' + (wIdx <= 0 ? ' disabled' : '') + '>‹</button>' +
-              '<span class="stat-card-label">Programvecka ' + esc(String(state.currentWeek)) + ' / ' + esc(String(lastWk)) + (state.changingWeek ? ' …' : '') + '</span>' +
-              '<button id="wkNext" aria-label="Nästa programvecka" style="' + btn + (wIdx >= state.weeks.length - 1 ? 'opacity:.25;cursor:default;' : '') + '"' + (wIdx >= state.weeks.length - 1 ? ' disabled' : '') + '>›</button>' +
+              '<button id="wkPrev" aria-label="' + (atFirst ? 'Tillbaka till förra cykelns sista vecka' : 'Föregående programvecka') + '" style="' + btn + (!canPrev ? 'opacity:.25;cursor:default;' : '') + '"' + (!canPrev ? ' disabled' : '') + '>‹</button>' +
+              '<span class="stat-card-label">Cykel ' + esc(String(state.currentCycle)) + ' · Vecka ' + esc(String(state.currentWeek)) + ' / ' + esc(String(lastWk)) + (state.changingWeek ? ' …' : '') + '</span>' +
+              '<button id="wkNext" aria-label="' + (atLast ? 'Starta nästa cykel (vecka 1)' : 'Nästa programvecka') + '" style="' + btn + '">›</button>' +
             '</div>' +
           '</div>'
         );
-        wkCard.querySelector('#wkPrev').onclick = function () { if (wIdx > 0) changeWeek(state.weeks[wIdx - 1]); };
-        wkCard.querySelector('#wkNext').onclick = function () { if (wIdx < state.weeks.length - 1) changeWeek(state.weeks[wIdx + 1]); };
+        wkCard.querySelector('#wkPrev').onclick = function () {
+          if (!canPrev) return;
+          if (atFirst) changeWeek(lastWk, state.currentCycle - 1);
+          else changeWeek(state.weeks[wIdx - 1]);
+        };
+        wkCard.querySelector('#wkNext').onclick = function () {
+          if (atLast) changeWeek(state.weeks[0], state.currentCycle + 1);
+          else changeWeek(state.weeks[wIdx + 1]);
+        };
         parent.appendChild(wkCard);
       }
 
@@ -1252,9 +1268,11 @@
                 // Backend kan ha auto-avancerat programveckan (alla pass i veckan klara).
                 if (r && r.advancedWeek && r.advancedWeek !== state.currentWeek) {
                   const nw = r.advancedWeek;
+                  const prevCycle = state.currentCycle;
                   google.script.run
                     .withSuccessHandler(function (d) {
                       state.currentWeek = d.week || nw;
+                      if (d.cycle) state.currentCycle = d.cycle;
                       if (d.weeks) state.weeks = d.weeks;
                       state.program = d.program || state.program;
                       if (d.listStats) {
@@ -1263,7 +1281,9 @@
                         state.weekVolume = d.listStats.weekVolume || 0;
                         state.weekStart = d.listStats.weekStart || '';
                       }
-                      toast('Veckan klar — programvecka framflyttad till vecka ' + (d.week || nw), 'success');
+                      toast(d.cycle && d.cycle > prevCycle
+                        ? 'Cykel ' + prevCycle + ' klar! Nu börjar cykel ' + d.cycle + ' — vecka ' + (d.week || nw)
+                        : 'Veckan klar — programvecka framflyttad till vecka ' + (d.week || nw), 'success');
                       render();
                     })
                     .withFailureHandler(function (err) {
@@ -1952,6 +1972,7 @@
           state.program = d.program;
           state.weeks = d.weeks || [1];
           state.currentWeek = d.currentWeek || 1;
+          state.currentCycle = d.currentCycle || 1;
           state.activeSession = d.activeSession || null;
           const st = d.listStats || {};
           state.passLastDate = st.lastDateByPass || {};
