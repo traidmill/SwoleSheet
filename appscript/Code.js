@@ -31,13 +31,13 @@ function doGet() {
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
-
 // TILLFÄLLIG: återskapar fliken "Program: Bänk & Chins" med CYKEL 2 (designad
 // 2026-07-10 ur cykel 1-loggen, se plan/artifact). Flera set med olika vikter =
 // separata segment-rader (samma Ordning + Övning → grupperas i appen).
 // Cykel 2-ändringar: ~14–16 set/pass för 60-min-pass (dips struken från Pass 1,
-// superset A = militär+sidolyft, B = spidercurl+reverse flyes; rodd/pushdown och
-// benpasset körs raka set med kort vila), pump-bänk progressas via vikt i
+// superset B = spidercurl+reverse flyes; övrigt raka set med kort vila — superset A
+// militär+sidolyft ströks 2026-07-26, david vill inte superset:a samma muskelgrupp),
+// pump-bänk progressas via vikt i
 // 15–18-repsfönstret, spidercurl på reps (fast stång 30 kg), marklyft med
 // viktprogression. V1 försiktig återinkörning, V3 toppar över cykel 1.
 function importBankChinsCykel2() {
@@ -46,7 +46,7 @@ function importBankChinsCykel2() {
   // wk[i] = veckans segment (array). Segment = [Set, Reps, Målvikt(null=tom), RIR(null=tom), Notering].
   // null som vecka = hoppa över (t.ex. ingen utfall i deload).
   const PROGRAM = [
-    // --- Pass 1 — Tryck + chins (volym) · superset A = militärpress + sidolyft ---
+    // --- Pass 1 — Tryck + chins (volym) · raka set (superset A struken 2026-07-26) ---
     { pass: 'Pass 1', ord: 1, övn: 'Bänkpress', wk: [
       [[4, '10', 97.5, 3, 'Volym, touch-and-go']],
       [[4, '10', 100, 2, 'Volym']],
@@ -58,14 +58,14 @@ function importBankChinsCykel2() {
       [[1, '4', 35, 1, 'Top-set'], [3, '8', 20, 1, 'Back-off']],
       [[1, '5', 22.5, 3, 'Deload top-set'], [2, '6', 12.5, 3, 'Back-off']] ] },
     { pass: 'Pass 1', ord: 3, övn: 'Militärpress', wk: [
-      [[3, '6', 55, 2, 'Superset A med sidolyft']],
-      [[3, '6', 57.5, 2, 'Superset A med sidolyft']],
-      [[4, '5', 57.5, 1, 'Superset A med sidolyft']],
+      [[3, '6', 55, 2, 'Raka set, vila ~2 min']],
+      [[3, '6', 57.5, 2, 'Raka set, vila ~2 min']],
+      [[4, '5', 57.5, 1, 'Raka set, vila ~2 min']],
       [[2, '6', 47.5, 3, 'Deload']] ] },
     { pass: 'Pass 1', ord: 4, övn: 'Sidolyft', wk: [
-      [[3, '15', 12, 1, 'Superset A. Sista set myo-reps']],
-      [[3, '12', 14, 1, 'Superset A. Sista set myo-reps']],
-      [[3, '12', 14, 0, 'Superset A. RIR 0, sista set myo-reps']],
+      [[3, '15', 12, 1, 'Kort vila. Sista set myo-reps']],
+      [[3, '12', 14, 1, 'Kort vila. Sista set myo-reps']],
+      [[3, '12', 14, 0, 'Kort vila. RIR 0, sista set myo-reps']],
       [[2, '15', null, 3, 'Deload, lätt']] ] },
 
     // --- Pass 2 — Pump · vila 60–90 s · superset B = spidercurl + reverse flyes ---
