@@ -1452,7 +1452,10 @@
           const pSet = prevSets[i];
           const dSet = completedSets[i];
           const prevStr = pSet ? esc(fmtSetShort(pSet)) : '–';
-          const malStr = programMålFor(setNr) || '–';
+          // Set utöver dagens plan har inget föreskrivet mål — segForSet klämmer
+          // annars fast vid sista segmentet och hittar på ett mål som inte finns.
+          const beyondPlan = setNr > ex.set;
+          const malStr = beyondPlan ? '–' : (programMålFor(setNr) || '–');
           let rowCls = '';
           let setCell = '<span class="sg-setlbl">SET ' + setNr + '</span>';
           let todayStr = '–';
@@ -1467,8 +1470,13 @@
             todayStr = '<span class="sg-check" aria-hidden="true">✓</span><span>' + esc(fmtSetShort(dSet)) + '</span>' + prHTML + '<span class="sg-edit" aria-hidden="true">✎</span>';
           } else if (setNr === state.currentSetNr && state.editingSetNr === null) {
             rowCls = ' active';
-            setCell += '<span class="sg-tag">' + (setNr > ex.set ? 'Extra' : 'Pågår') + '</span>';
+            setCell += '<span class="sg-tag">' + (beyondPlan ? 'Extra' : 'Pågår') + '</span>';
             todayStr = '<span id="sgLive">–</span>';
+          } else if (beyondPlan) {
+            // Raden finns bara för att förra passet hade fler set än dagens plan —
+            // tona ner och märk tydligt så den inte läses som ett set att köra.
+            rowCls = ' ghost';
+            setCell += '<span class="sg-tag">Ej idag</span>';
           }
           const rowEl = el(
             '<div class="sg-row' + rowCls + '" role="row">' +

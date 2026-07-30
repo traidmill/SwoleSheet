@@ -463,6 +463,9 @@
       display: flex; align-items: center; justify-content: flex-end; gap: 5px;
     }
     .sg-check { font: 700 13px 'Oswald', sans-serif; color: var(--accent); }
+    /* Spök-rad: set som bara finns i förra passets historik, inte i dagens plan */
+    .sg-row.ghost { opacity: .45; }
+    .sg-row.ghost .sg-tag { color: var(--muted-2); }
     .sg-row.editable { cursor: pointer; }
     .sg-row.editable:active { background: #131316; }
     .sg-edit { font-size: 12px; color: #3f6b52; margin-left: 2px; flex: 0 0 auto; }
