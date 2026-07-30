@@ -91,6 +91,7 @@
       return Math.round((today - then) / 86400000);
     }
     const MONTHS_SHORT = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    const WEEKDAYS_SHORT = ['sön', 'mån', 'tis', 'ons', 'tor', 'fre', 'lör'];
     function fmtDateMini(dateStr) {
       if (!dateStr) return '';
       const d = daysSince(dateStr);
@@ -1245,11 +1246,20 @@
                 });
               });
               const durationMin = Math.max(1, Math.floor((new Date() - new Date(startTime)) / 60000));
+              // Hela passet i programordning (tillagda övningar sist) — så att
+              // sammanfattningen kan visa allt man körde, redo att skärmskottas.
+              const exOrder = {};
+              const progIdx = passIdxByName(passKey);
+              if (progIdx >= 0) state.program[progIdx].exercises.forEach(function (ex, i) { exOrder[ex.övning] = i; });
+              const exercises = Object.keys(data).sort(function (a, b) {
+                return ((a in exOrder) ? exOrder[a] : 999) - ((b in exOrder) ? exOrder[b] : 999);
+              }).map(function (n) { return { övning: n, sets: data[n] }; });
               state.summary = {
                 pass: passKey,
                 duration: durationMin,
                 totalSets: totalSets,
                 totalVolume: totalVolume,
+                exercises: exercises,
                 prs: prs || [],
                 endedAt: new Date().toISOString()
               };
@@ -1755,20 +1765,49 @@
         : '';
       const prStyle = s.prs.length > 0 ? ' style="color:var(--accent)"' : '';
 
+      // Datum med veckodag — "avslutat 12:53" ensamt säger inget i ett delat skärmskott.
+      const endD = new Date(s.endedAt);
+      const datePart = WEEKDAYS_SHORT[endD.getDay()] + ' ' + endD.getDate() + ' ' + MONTHS_SHORT[endD.getMonth()];
+
+      // Övningslista med PR invävt per rad (i stället för separat PR-lista) —
+      // hela passet i ett enda kort som ryms på en skärm och kan skärmskottas.
+      const prByEx = {};
+      (s.prs || []).forEach(function (p) { (prByEx[p.övning] = prByEx[p.övning] || []).push(p); });
+      let exHTML = '';
+      (s.exercises || []).forEach(function (e) {
+        const exPRs = prByEx[e.övning] || [];
+        const prDetails = exPRs.map(function (p) {
+          const kinds = [];
+          if (p.weightPR) kinds.push('vikt-PR');
+          if (p.repPR) kinds.push('rep-PR');
+          const w = (p.vikt !== null && p.vikt !== undefined) ? ' × ' + fmtNum(p.vikt) : '';
+          return p.reps + w + ' — ' + kinds.join(', ');
+        });
+        exHTML +=
+          '<div class="summary-ex">' +
+            '<div class="summary-ex-name">' + esc(e.övning) + (exPRs.length ? '<span class="pr-pill">PR</span>' : '') + '</div>' +
+            '<div class="summary-ex-sets num">' + esc(compressSets(e.sets)) + '</div>' +
+            (prDetails.length ? '<div class="summary-ex-pr num">★ ' + esc(prDetails.join(' · ')) + '</div>' : '') +
+          '</div>';
+      });
+
       parent.appendChild(el(
         '<div class="summary-card">' +
           '<div class="summary-icon" aria-hidden="true">✓</div>' +
           '<div class="summary-name">' + esc(s.pass) + '</div>' +
-          '<div class="summary-time num">' + s.duration + ' min · avslutat ' + esc(fmtTime(s.endedAt)) + '</div>' +
+          '<div class="summary-time num">' + esc(datePart) + ' · ' + s.duration + ' min · avslutat ' + esc(fmtTime(s.endedAt)) + '</div>' +
           '<div class="summary-stats">' +
             '<div><div class="summary-stat-value num">' + s.totalSets + '</div><div class="summary-stat-label">Set</div></div>' +
             volumePart +
             '<div><div class="summary-stat-value num"' + prStyle + '>' + s.prs.length + '</div><div class="summary-stat-label">PR</div></div>' +
           '</div>' +
+          (exHTML ? '<div class="summary-exlist">' + exHTML + '</div>' : '') +
+          '<div class="summary-brand">Swolesheet</div>' +
         '</div>'
       ));
 
-      appendPRList(parent, s.prs);
+      // Äldre summeringar utan övningslista (bör inte inträffa) — visa PR-listan som förr.
+      if (!exHTML) appendPRList(parent, s.prs);
 
       const btn = el('<button class="btn">Tillbaka till listan</button>');
       btn.onclick = function () {
