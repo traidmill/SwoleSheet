@@ -1756,25 +1756,35 @@
       updateLive();
     }
 
-    function renderPassSummary(parent) {
-      const s = state.summary;
-      if (!s) { state.view = 'passList'; render(); return; }
+    // Datum med veckodag — "avslutat 12:53" ensamt säger inget i ett delat skärmskott.
+    function fmtDateFull(d) {
+      return WEEKDAYS_SHORT[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
+    }
 
-      const volumePart = s.totalVolume > 0
-        ? '<div><div class="summary-stat-value num">' + esc(fmtVolume(s.totalVolume)) + '</div><div class="summary-stat-label">kg total</div></div>'
+    // Delat passkort — passummeringen (färskt pass ur minnet) och historik-detaljvyn
+    // (serverdata) ritar samma kort så vyerna inte glider isär. Designat för att
+    // skärmskottas: allt i en yta, PR invävt per övning, Swolesheet-signatur.
+    // c: { pass, datum, duration, endedTime, totalSets, totalVolume, exercises, prs,
+    //      showComments (bara historiken), loading (skelett i stället för övningslistan) }
+    function renderPassCard(parent, c) {
+      const volumePart = c.totalVolume > 0
+        ? '<div><div class="summary-stat-value num">' + esc(fmtVolume(c.totalVolume)) + '</div><div class="summary-stat-label">kg total</div></div>'
         : '';
-      const prStyle = s.prs.length > 0 ? ' style="color:var(--accent)"' : '';
+      const prs = c.prs || [];
+      const prStyle = prs.length > 0 ? ' style="color:var(--accent)"' : '';
 
-      // Datum med veckodag — "avslutat 12:53" ensamt säger inget i ett delat skärmskott.
-      const endD = new Date(s.endedAt);
-      const datePart = WEEKDAYS_SHORT[endD.getDay()] + ' ' + endD.getDate() + ' ' + MONTHS_SHORT[endD.getMonth()];
+      const timeBits = [c.datum];
+      if (c.duration) timeBits.push(c.duration + ' min');
+      if (c.endedTime) timeBits.push('avslutat ' + c.endedTime);
 
-      // Övningslista med PR invävt per rad (i stället för separat PR-lista) —
-      // hela passet i ett enda kort som ryms på en skärm och kan skärmskottas.
       const prByEx = {};
-      (s.prs || []).forEach(function (p) { (prByEx[p.övning] = prByEx[p.övning] || []).push(p); });
+      prs.forEach(function (p) { (prByEx[p.övning] = prByEx[p.övning] || []).push(p); });
       let exHTML = '';
-      (s.exercises || []).forEach(function (e) {
+      if (c.loading) {
+        for (let i = 0; i < 4; i++) {
+          exHTML += '<div class="summary-ex">' + skBar('55%', '0.92rem') + skBar('38%', '0.83rem', '5px') + '</div>';
+        }
+      } else (c.exercises || []).forEach(function (e) {
         const exPRs = prByEx[e.övning] || [];
         const prDetails = exPRs.map(function (p) {
           const kinds = [];
@@ -1783,31 +1793,52 @@
           const w = (p.vikt !== null && p.vikt !== undefined) ? ' × ' + fmtNum(p.vikt) : '';
           return p.reps + w + ' — ' + kinds.join(', ');
         });
+        let kommHTML = '';
+        if (c.showComments) e.sets.forEach(function (s) {
+          if (s.kommentar) kommHTML += '<div class="summary-ex-comment">✎ ”Set ' + s.setNr + ': ' + esc(s.kommentar) + '”</div>';
+        });
         exHTML +=
           '<div class="summary-ex">' +
             '<div class="summary-ex-name">' + esc(e.övning) + (exPRs.length ? '<span class="pr-pill">PR</span>' : '') + '</div>' +
             '<div class="summary-ex-sets num">' + esc(compressSets(e.sets)) + '</div>' +
             (prDetails.length ? '<div class="summary-ex-pr num">★ ' + esc(prDetails.join(' · ')) + '</div>' : '') +
+            kommHTML +
           '</div>';
       });
 
       parent.appendChild(el(
-        '<div class="summary-card">' +
+        '<div class="summary-card"' + (c.loading ? ' aria-busy="true"' : '') + '>' +
           '<div class="summary-icon" aria-hidden="true">✓</div>' +
-          '<div class="summary-name">' + esc(s.pass) + '</div>' +
-          '<div class="summary-time num">' + esc(datePart) + ' · ' + s.duration + ' min · avslutat ' + esc(fmtTime(s.endedAt)) + '</div>' +
+          '<div class="summary-name">' + esc(c.pass) + '</div>' +
+          '<div class="summary-time num">' + esc(timeBits.join(' · ')) + '</div>' +
           '<div class="summary-stats">' +
-            '<div><div class="summary-stat-value num">' + s.totalSets + '</div><div class="summary-stat-label">Set</div></div>' +
+            '<div><div class="summary-stat-value num">' + c.totalSets + '</div><div class="summary-stat-label">Set</div></div>' +
             volumePart +
-            '<div><div class="summary-stat-value num"' + prStyle + '>' + s.prs.length + '</div><div class="summary-stat-label">PR</div></div>' +
+            '<div><div class="summary-stat-value num"' + prStyle + '>' + (c.loading ? '–' : prs.length) + '</div><div class="summary-stat-label">PR</div></div>' +
           '</div>' +
           (exHTML ? '<div class="summary-exlist">' + exHTML + '</div>' : '') +
           '<div class="summary-brand">Swolesheet</div>' +
         '</div>'
       ));
+      return !c.loading && (c.exercises || []).length > 0;
+    }
 
+    function renderPassSummary(parent) {
+      const s = state.summary;
+      if (!s) { state.view = 'passList'; render(); return; }
+
+      const hasEx = renderPassCard(parent, {
+        pass: s.pass,
+        datum: fmtDateFull(new Date(s.endedAt)),
+        duration: s.duration,
+        endedTime: fmtTime(s.endedAt),
+        totalSets: s.totalSets,
+        totalVolume: s.totalVolume,
+        exercises: s.exercises,
+        prs: s.prs
+      });
       // Äldre summeringar utan övningslista (bör inte inträffa) — visa PR-listan som förr.
-      if (!exHTML) appendPRList(parent, s.prs);
+      if (!hasEx) appendPRList(parent, s.prs);
 
       const btn = el('<button class="btn">Tillbaka till listan</button>');
       btn.onclick = function () {
@@ -1917,43 +1948,26 @@
       back.onclick = function () { history.back(); };
       parent.appendChild(back);
 
-      const g = passGhost(it.pass);
-      if (g) parent.appendChild(el('<div class="ghost-num" aria-hidden="true">' + g + '</div>'));
-
-      const timeSub = (it.startTime && it.endTime)
-        ? '<div class="screen-sub num">' + esc(fmtTime(it.startTime)) + '–' + esc(fmtTime(it.endTime)) + '</div>'
-        : '';
-      parent.appendChild(el(
-        '<div class="screen-head" style="margin-top:10px">' +
-          '<div class="eyebrow green">Avslutat pass · ' + esc(fmtDateMini(it.date)) + '</div>' +
-          '<div class="screen-title">' + esc(it.pass) + '</div>' +
-          timeSub +
-        '</div>'
-      ));
-
-      // Stora siffror: volym · set · min (samma mönster som Förra gången-kortet)
-      const stats = [];
-      if (it.volume > 0) {
-        stats.push('<div><div class="v green num">' + esc(fmtVolume(it.volume)) + '</div><div class="l">kg volym</div></div>');
-      }
-      stats.push('<div><div class="v num">' + it.setCount + '</div><div class="l">set</div></div>');
-      const dur = histDurationMin(it);
-      if (dur !== null) {
-        stats.push('<div><div class="v num">' + dur + '</div><div class="l">min</div></div>');
-      }
-      parent.appendChild(el('<div class="stat-card"><div class="stats3">' + stats.join('') + '</div></div>'));
-
+      // Samma passkort som summeringen efter avslutat pass (renderPassCard) —
+      // med skelett-övningsrader tills serverdatat kommit, och set-kommentarer
+      // synliga (till skillnad från det färska delnings-kortet).
       const detail = state.sessionDetailCache[histId(it)];
-      const xlist = el('<div class="xlist"><div class="xlist-label">Övningar</div></div>');
+      const card = {
+        pass: it.pass,
+        datum: fmtDateFull(new Date(it.date + 'T00:00:00')),
+        duration: histDurationMin(it),
+        endedTime: it.endTime ? fmtTime(it.endTime) : null,
+        totalSets: it.setCount,
+        totalVolume: it.volume,
+        showComments: true
+      };
       if (detail === null || detail === undefined) {
-        xlist.setAttribute('aria-busy', 'true');
-        xlist.innerHTML += skRows(4);
-        parent.appendChild(xlist);
+        card.loading = true;
+        renderPassCard(parent, card);
         return;
       }
 
       const sbe = detail.setsByExercise || {};
-      const prs = detail.prs || [];
       const exNames = Object.keys(sbe);
       // Nyckelordningen ur servern = i vilken ordning seten loggades — sortera
       // enligt programmets övningsordning; utgångna övningar hamnar sist.
@@ -1965,33 +1979,10 @@
           return ((a in order) ? order[a] : 999) - ((b in order) ? order[b] : 999);
         });
       }
-      if (exNames.length === 0) {
-        xlist.appendChild(el('<div class="empty">Inga loggade set hittades.</div>'));
-      }
-      exNames.forEach(function (övn) {
-        const sets = sbe[övn];
-        const hasPR = prs.some(function (p) { return p.övning === övn; });
-        xlist.appendChild(el(
-          '<div class="xrow" style="cursor:default">' +
-            '<div class="xedge"></div>' +
-            '<div class="xmain">' +
-              '<div class="xname-row"><span class="xname">' + esc(övn) + '</span>' +
-                (hasPR ? '<span class="pr-pill">PR</span>' : '') + '</div>' +
-              '<div class="xsub num">' + esc(compressSets(sets)) + '</div>' +
-            '</div>' +
-          '</div>'
-        ));
-        sets.forEach(function (s) {
-          if (s.kommentar) {
-            xlist.appendChild(el(
-              '<div class="sg-comment"><span class="pen">✎</span><span class="txt">”Set ' + s.setNr + ': ' + esc(s.kommentar) + '”</span></div>'
-            ));
-          }
-        });
-      });
-      parent.appendChild(xlist);
-
-      appendPRList(parent, prs);
+      card.exercises = exNames.map(function (n) { return { övning: n, sets: sbe[n] }; });
+      card.prs = detail.prs || [];
+      renderPassCard(parent, card);
+      if (exNames.length === 0) parent.appendChild(el('<div class="empty">Inga loggade set hittades.</div>'));
     }
 
     // --- init ---
