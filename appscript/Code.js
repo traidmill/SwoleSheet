@@ -197,7 +197,20 @@ function _passIdFromDate(d) {
 function _normalizePassId(v) {
   if (v === null || v === undefined || v === '') return '';
   if (v instanceof Date) return _passIdFromDate(v);
-  return String(v).trim();
+  // Sheets autokonverterar ibland id-strängen till ett datum trots '@'-format.
+  // Ett tal är då en datumserie (dagar sedan 1899-12-30) — återskapa väggklockan
+  // genom att tolka serien som UTC och formatera i UTC (tidszonsneutralt).
+  if (typeof v === 'number' && v > 20000 && v < 80000) {
+    const ms = Math.round((v - 25569) * 1440) * 60000; // närmaste minut
+    return Utilities.formatDate(new Date(ms), 'UTC', 'yyyy-MM-dd HH:mm');
+  }
+  // När en datumkonverterad cell formateras om till text skriver Sheets timmen
+  // utan inledande nolla ("2026-08-03 9:38") medan _passIdFromDate ger "09:38".
+  // Padda så att alla varianter landar i samma kanoniska form.
+  const s = String(v).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2}) (\d):(\d{2})$/);
+  if (m) return m[1] + ' 0' + m[2] + ':' + m[3];
+  return s;
 }
 
 function _ensureTextColumn(sheet, columnName) {
@@ -213,7 +226,8 @@ function _ensureTextColumn(sheet, columnName) {
   if (totalRows > 1) {
     sheet.getRange(2, idx + 1, totalRows - 1, 1).setNumberFormat('@');
   }
-  // Repair already-corrupted rows (Date values written before formatting was set)
+  // Repair already-corrupted rows: Date-värden, datumserietal (Date som lästs
+  // genom '@'-format) och opaddade timmar — allt kanoniseras via _normalizePassId.
   const lastRow = sheet.getLastRow();
   if (lastRow >= 2) {
     const range = sheet.getRange(2, idx + 1, lastRow - 1, 1);
@@ -221,11 +235,10 @@ function _ensureTextColumn(sheet, columnName) {
     let needsRewrite = false;
     const newValues = values.map(function (row) {
       const v = row[0];
-      if (v instanceof Date) {
-        needsRewrite = true;
-        return [_passIdFromDate(v)];
-      }
-      return [row[0]];
+      if (v === '' || v === null) return [v];
+      const norm = _normalizePassId(v);
+      if (norm !== v) { needsRewrite = true; return [norm]; }
+      return [v];
     });
     if (needsRewrite) range.setValues(newValues);
   }
@@ -440,7 +453,7 @@ function setCurrentWeek(programName, vecka, cykel) {
   // Om veckan justerades (ogiltig) behöver vi rätt veckas rader.
   const bundle = (v === Number(vecka)) ? probe : _programBundle(name, v);
   // Ny vecka → ny klart-status; skickas med så listvyn slipper ett extra anrop.
-  const weekStats = (bundle.weeks && bundle.weeks.length > 1) ? _weekSessionStats(name, v) : null;
+  const weekStats = (bundle.weeks && bundle.weeks.length > 1) ? _weekSessionStats(name, v, _getCycle(name)) : null;
   return {
     week: v,
     cycle: _getCycle(name),
@@ -651,14 +664,16 @@ function _listStatsFromCols(c, programName, weekStats) {
 function _weekStatsFor(programName, bundle) {
   const b = bundle || _programBundle(programName);
   if (!b.weeks || b.weeks.length <= 1) return null;
-  return _weekSessionStats(programName, b.currentWeek);
+  return _weekSessionStats(programName, b.currentWeek, _getCycle(programName));
 }
 
 // Klart-status per pass för en programvecka. Sessions är sanningen (samma semantik
 // som _maybeAdvanceWeek): pass → true om minst en AVSLUTAD session finns för
-// programmet + veckan. passIds = veckans sessions-ID:n, så volymen kan räknas ur Logg.
-// Sessioner loggade innan Vecka-kolumnen fanns räknas aldrig som klara.
-function _weekSessionStats(programName, week) {
+// programmet + veckan + CYKELN — utan cykelmatch räknas förra cykelns "vecka 2"
+// som klar i nästa cykels vecka 2. passIds = veckans sessions-ID:n, så volymen
+// kan räknas ur Logg. Sessioner loggade innan Vecka-kolumnen fanns räknas aldrig
+// som klara; rader utan Cykel (innan kolumnen fanns) räknas som cykel 1.
+function _weekSessionStats(programName, week, cycle) {
   const out = { doneByPass: {}, passIds: {} };
   const s = _readSessionsSheet();
   if (!s) return out;
@@ -666,12 +681,14 @@ function _weekSessionStats(programName, week) {
   const cProg = s.colMap['Program'];
   const cSlut = s.colMap['Slut-tid'];
   const cVecka = s.colMap['Vecka'];
+  const cCykel = s.colMap['Cykel'];
   const cId = s.colMap['Pass-ID'];
   if (cVecka === undefined || cPass === undefined || cSlut === undefined) return out;
   const defaultProgram = _defaultProgramName();
   s.rows.forEach(function (row) {
     if (_normalizeProgram(cProg === undefined ? '' : row[cProg], defaultProgram) !== programName) return;
     if (Number(row[cVecka]) !== Number(week)) return;
+    if (cCykel !== undefined && cycle && (Number(row[cCykel]) || 1) !== Number(cycle)) return;
     if (row[cSlut] === '' || row[cSlut] === null) return; // ej avslutad
     out.doneByPass[String(row[cPass]).trim()] = true;
     if (cId !== undefined) {
@@ -925,6 +942,7 @@ function endPass(passId) {
   const cSlut = _col(s.colMap, 'Slut-tid', SESSIONS_SHEET);
   const cProg = s.colMap['Program'];
   const cVecka = s.colMap['Vecka'];
+  const cCykel = s.colMap['Cykel'];
   const target = _normalizePassId(passId);
 
   for (let i = 0; i < s.rows.length; i++) {
@@ -935,9 +953,12 @@ function endPass(passId) {
       if (cVecka !== undefined) {
         const program = _normalizeProgram(cProg === undefined ? '' : s.rows[i][cProg], _defaultProgramName());
         const week = Number(s.rows[i][cVecka]);
+        // Sessionens egen cykel styr (frusen vid start, som veckan); saknas den
+        // används den aktuella cykelräknaren.
+        const cykel = (cCykel !== undefined && Number(s.rows[i][cCykel])) ? Number(s.rows[i][cCykel]) : _getCycle(program);
         if (week) {
           SpreadsheetApp.flush(); // säkerställ att slut-tiden syns vid omläsningen nedan
-          try { advancedWeek = _maybeAdvanceWeek(program, week); } catch (e) { advancedWeek = null; }
+          try { advancedWeek = _maybeAdvanceWeek(program, week, cykel); } catch (e) { advancedWeek = null; }
         }
       }
       return { ok: true, advancedWeek: advancedWeek };
@@ -947,10 +968,12 @@ function endPass(passId) {
 }
 
 // Avancerar programveckan om varje pass i den angivna veckan har minst en avslutad
-// session (för det programmet, just den veckan). Wrappar till första veckan efter
-// sista (ny cykel). Returnerar nya veckan, eller null om inget skedde.
-// Kräver 'Vecka'-kolumnen i Sessions — gamla rader utan vecka räknas aldrig som klara.
-function _maybeAdvanceWeek(programName, week) {
+// session (för det programmet, just den veckan, i just den CYKELN — annars räknas
+// förra cykelns sessioner och veckan hoppas över i förtid). Wrappar till första
+// veckan efter sista (ny cykel). Returnerar nya veckan, eller null om inget skedde.
+// Kräver 'Vecka'-kolumnen i Sessions — gamla rader utan vecka räknas aldrig som
+// klara; rader utan Cykel (innan kolumnen fanns) räknas som cykel 1.
+function _maybeAdvanceWeek(programName, week, cycle) {
   const bundle = _programBundle(programName, week);
   const weeks = bundle.weeks;
   if (!weeks || weeks.length <= 1) return null; // enveckas-program → inget att avancera
@@ -963,6 +986,7 @@ function _maybeAdvanceWeek(programName, week) {
   const cProg = s.colMap['Program'];
   const cSlut = s.colMap['Slut-tid'];
   const cVecka = s.colMap['Vecka'];
+  const cCykel = s.colMap['Cykel'];
   if (cVecka === undefined || cPass === undefined || cSlut === undefined) return null;
   const defaultProgram = _defaultProgramName();
 
@@ -970,6 +994,7 @@ function _maybeAdvanceWeek(programName, week) {
   s.rows.forEach(function (row) {
     if (_normalizeProgram(cProg === undefined ? '' : row[cProg], defaultProgram) !== programName) return;
     if (Number(row[cVecka]) !== Number(week)) return;
+    if (cCykel !== undefined && cycle && (Number(row[cCykel]) || 1) !== Number(cycle)) return;
     if (row[cSlut] === '' || row[cSlut] === null) return; // ej avslutad
     done[String(row[cPass]).trim()] = true;
   });
