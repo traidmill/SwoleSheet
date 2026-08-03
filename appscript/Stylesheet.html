@@ -696,8 +696,10 @@
       font-size: 0.88rem; font-weight: 500;
     }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
-    .toast.error-toast { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-border); }
-    .toast.success-toast { background: var(--success-soft); color: var(--success); border-color: var(--success-border); }
+    /* Täckande bakgrunder — halvtransparent (--danger-soft) lät sidan bakom
+       lysa igenom och gjorde feltexter oläsliga ovanpå rubriker. */
+    .toast.error-toast { background: #2b1214; color: #ffc9c9; border-color: var(--danger-border); }
+    .toast.success-toast { background: #0e2418; color: var(--success); border-color: var(--success-border); }
 
     .modal-overlay {
       position: fixed; inset: 0;

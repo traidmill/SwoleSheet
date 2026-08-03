@@ -146,7 +146,7 @@
         })
         .withFailureHandler(function (err) {
           // Bakgrundsuppdatering — visa felet men lämna befintlig statistik orörd
-          toast('Kunde inte uppdatera statistik: ' + (err && err.message ? err.message : err), 'error');
+          toast('Kunde inte uppdatera statistik: ' + errText(err), 'error');
         })
         .getListStats(state.activeProgram);
     }
@@ -254,6 +254,13 @@
       return ' <span class="trend eq">=</span>';
     }
 
+    // Gör serverfel läsbara: plocka message ur felobjektet och skala bort
+    // tekniska prefix ("Error:", "Exception:") som Apps Script lägger till.
+    function errText(err) {
+      const m = (err && err.message) ? err.message : String(err);
+      return m.replace(/^\s*(Error|Exception|ScriptError)\s*:\s*/i, '');
+    }
+
     function toast(msg, kind) {
       const t = document.createElement('div');
       t.className = 'toast' + (kind === 'error' ? ' error-toast' : kind === 'success' ? ' success-toast' : '');
@@ -261,7 +268,9 @@
       t.textContent = msg;
       document.body.appendChild(t);
       requestAnimationFrame(function () { t.classList.add('show'); });
-      setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 250); }, 1700);
+      // Fel får stå kvar längre — de ska hinna läsas, inte bara blinka förbi.
+      const ms = kind === 'error' ? 4000 : 1700;
+      setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 250); }, ms);
     }
 
     function showModal(title, text, confirmLabel, confirmKind, onConfirm) {
@@ -699,7 +708,7 @@
         })
         .withFailureHandler(function (err) {
           state.switchingProgram = null;
-          toast('Kunde inte byta program: ' + (err && err.message ? err.message : err), 'error');
+          toast('Kunde inte byta program: ' + errText(err), 'error');
           render();
         })
         .setActiveProgram(name);
@@ -728,7 +737,7 @@
         })
         .withFailureHandler(function (err) {
           state.changingWeek = false;
-          toast('Kunde inte byta vecka: ' + (err && err.message ? err.message : err), 'error');
+          toast('Kunde inte byta vecka: ' + errText(err), 'error');
           render();
         })
         .setCurrentWeek(state.activeProgram, week, cycle === undefined ? null : cycle);
@@ -963,7 +972,7 @@
                 render();
               })
               .withFailureHandler(function (err) {
-                toast('Kunde inte ta bort: ' + (err && err.message ? err.message : err), 'error');
+                toast('Kunde inte ta bort: ' + errText(err), 'error');
                 render();
               })
               .deleteSession(sess.passId);
@@ -1073,7 +1082,7 @@
             })
             .withFailureHandler(function (err) {
               state.starting = false;
-              toast('Kunde inte starta: ' + (err && err.message ? err.message : err), 'error');
+              toast('Kunde inte starta: ' + errText(err), 'error');
               render();
             })
             .startPass(pass.pass, state.activeProgram);
@@ -1297,7 +1306,7 @@
                       render();
                     })
                     .withFailureHandler(function (err) {
-                      toast('Kunde inte flytta fram programveckan: ' + (err && err.message ? err.message : err), 'error');
+                      toast('Kunde inte flytta fram programveckan: ' + errText(err), 'error');
                     })
                     .setCurrentWeek(state.activeProgram, nw);
                 }
@@ -1308,7 +1317,7 @@
               })
               .withFailureHandler(function (err) {
                 state.ending = false;
-                toast('Kunde inte avsluta: ' + (err && err.message ? err.message : err), 'error');
+                toast('Kunde inte avsluta: ' + errText(err), 'error');
                 render();
               })
               .endPass(passId);
@@ -1353,7 +1362,7 @@
               })
               .withFailureHandler(function (err) {
                 state.canceling = false;
-                toast('Kunde inte avbryta: ' + (err && err.message ? err.message : err), 'error');
+                toast('Kunde inte avbryta: ' + errText(err), 'error');
                 render();
               })
               .deleteSession(passId);
@@ -1662,7 +1671,7 @@
               state.saving = false;
               saveBtn.disabled = false;
               saveBtn.textContent = 'Uppdatera set ' + editNr;
-              toast('Kunde inte uppdatera: ' + (err && err.message ? err.message : err), 'error');
+              toast('Kunde inte uppdatera: ' + errText(err), 'error');
             })
             .updateSet({
               passId: state.activeSession.passId,
@@ -1707,7 +1716,7 @@
             state.saving = false;
             saveBtn.disabled = false;
             saveBtn.textContent = 'Spara set ' + state.currentSetNr + ' →';
-            toast('Fel: ' + (err && err.message ? err.message : err), 'error');
+            toast('Fel: ' + errText(err), 'error');
           })
           .logSet(entry);
       };
@@ -1737,7 +1746,7 @@
                 render();
               })
               .withFailureHandler(function (err) {
-                toast('Kunde inte ta bort: ' + (err && err.message ? err.message : err), 'error');
+                toast('Kunde inte ta bort: ' + errText(err), 'error');
               })
               .deleteSet({
                 passId: state.activeSession.passId,
@@ -2038,7 +2047,7 @@
         })
         .withFailureHandler(function (err) {
           state.view = 'error';
-          state.errorMsg = (err && err.message) ? err.message : String(err);
+          state.errorMsg = errText(err);
           render();
         })
         .getInitData();
