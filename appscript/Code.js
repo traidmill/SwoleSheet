@@ -40,6 +40,18 @@ function include(filename) {
 // pump-bänk progressas via vikt i
 // 15–18-repsfönstret, spidercurl på reps (fast stång 30 kg), marklyft med
 // viktprogression. V1 försiktig återinkörning, V3 toppar över cykel 1.
+//
+// ÄNDRAT 2026-08-13 — vecka 3 och 4 skrivna om, veckorna 1–2 orörda:
+// Blocket kördes på RIR 0 från vecka 2 (loggen: "Rir 0-1", "0 rir", "inte en
+// chans till 8", arg högeraxel) och benpasset kraschade 8/8. V3 nedsatt så
+// blocket kan AVSLUTAS i stället för testas: bänkens 122,5-trea struken —
+// AMRAP:en på 112,5 körs färsk och blir mätpunkten som sätter nästa program;
+// knäböj 112,5→102,5 och marklyft 137,5→127,5 på RIR 3.
+// V4-deloaden vänd rätt enligt Helms (TMaSP s. 65–66): tidigare sänktes VIKTEN
+// ~12 % medan repsen behölls. Nu tvärtom — vikten står kvar, ett till två set
+// bort per övning och repsmålet ner två. Undantaget är knäböj och marklyft,
+// där vikten sänks mer än Helms skulle: där är ryggen begränsningen och
+// deloadens jobb är återhämtning, inte stimulans.
 function importBankChinsCykel2() {
   const SHEET = 'Program: Bänk & Chins';
   const headers = ['Vecka', 'Pass', 'Ordning', 'Övning', 'Set', 'Reps', 'Målvikt', 'RIR', 'Notering'];
@@ -51,85 +63,92 @@ function importBankChinsCykel2() {
       [[4, '10', 97.5, 3, 'Volym, touch-and-go']],
       [[4, '10', 100, 2, 'Volym']],
       [[4, '10', 102.5, 1, 'Volym, tungt — reps får falla till 8–9']],
-      [[3, '8', 87.5, 3, 'Deload, lätt']] ] },
+      [[2, '6', 100, 4, 'Deload: vikten kvar, volymen halverad. Ska kännas lätt']] ] },
     { pass: 'Pass 1', ord: 2, övn: 'Viktade chins', wk: [
       [[1, '5', 27.5, 2, 'Top-set'], [3, '8', 17.5, 2, 'Back-off']],
       [[1, '4', 32.5, 2, 'Top-set'], [3, '8', 17.5, 2, 'Back-off']],
       [[1, '4', 35, 1, 'Top-set'], [3, '8', 20, 1, 'Back-off']],
-      [[1, '5', 22.5, 3, 'Deload top-set'], [2, '6', 12.5, 3, 'Back-off']] ] },
+      [[1, '3', 30, 4, 'Deload top-set'], [2, '5', 17.5, 4, 'Deload back-off']] ] },
     { pass: 'Pass 1', ord: 3, övn: 'Militärpress', wk: [
       [[3, '6', 55, 2, 'Raka set, vila ~2 min']],
       [[3, '6', 57.5, 2, 'Raka set, vila ~2 min']],
       [[4, '5', 57.5, 1, 'Raka set, vila ~2 min']],
-      [[2, '6', 47.5, 3, 'Deload']] ] },
+      [[2, '4', 55, 4, 'Deload: vikten kvar, färre set och reps']] ] },
     { pass: 'Pass 1', ord: 4, övn: 'Sidolyft', wk: [
       [[3, '15', 12, 1, 'Kort vila. Sista set myo-reps']],
       [[3, '12', 14, 1, 'Kort vila. Sista set myo-reps']],
       [[3, '12', 14, 0, 'Kort vila. RIR 0, sista set myo-reps']],
-      [[2, '15', null, 3, 'Deload, lätt']] ] },
+      [[2, '10', 12, 3, 'Deload. Inga myo-reps']] ] },
 
     // --- Pass 2 — Pump · vila 60–90 s · superset B = spidercurl + reverse flyes ---
     { pass: 'Pass 2', ord: 1, övn: 'Bänkpress', wk: [
       [[4, '15', 85, 2, 'Pump — vikt i 15–18-repsfönstret, reps får falla set för set']],
       [[4, '16', 85, 2, 'Pump — RIR styr, reps får falla set för set']],
       [[4, '15', 87.5, 1, 'Pump — håll RIR 1, reps får falla set för set']],
-      [[3, '12', 75, 3, 'Deload']] ] },
+      [[2, '10', 85, 4, 'Deload: vikten kvar, volymen halverad']] ] },
     { pass: 'Pass 2', ord: 2, övn: 'Viktade chins', wk: [
-      [[4, '8', 15, 3, '']], [[4, '9', 15, 2, '']], [[4, '8', 17.5, 2, '']], [[3, '8', 10, 3, 'Deload']] ] },
+      [[4, '8', 15, 3, '']], [[4, '9', 15, 2, '']], [[4, '8', 17.5, 2, '']], [[2, '6', 17.5, 4, 'Deload: vikten kvar']] ] },
     { pass: 'Pass 2', ord: 3, övn: 'Maskinrodd', wk: [
       [[3, '10', null, 2, 'Ställ vikt mot RIR (ca 103)']],
       [[4, '8', null, 2, 'Ställ vikt mot RIR (ca 105)']],
       [[4, '8', null, 2, 'Ställ vikt mot RIR (ca 108)']],
-      [[3, '10', null, 3, 'Deload, lätt']] ] },
+      [[2, '6', null, 4, 'Deload: samma vikt som v3, färre set och reps']] ] },
     { pass: 'Pass 2', ord: 4, övn: 'Spidercurl', wk: [
       [[3, '15', 30, 1, 'Superset B. Fast stång 30 kg — progression på reps. Sista set myo-reps']],
       [[3, '16', 30, 1, 'Superset B. Sista set myo-reps']],
       [[3, '18', 30, 0, 'Superset B. RIR 0, sista set myo-reps']],
-      [[2, '12', 30, 3, 'Deload']] ] },
+      [[2, '12', 30, 3, 'Deload. Inga myo-reps']] ] },
     { pass: 'Pass 2', ord: 5, övn: 'Reverse flyes', wk: [
       [[3, '15', 10, 1, 'Superset B. Sista set myo-reps']],
       [[3, '13', 11, 1, 'Superset B. Sista set myo-reps']],
       [[3, '12', 11, 0, 'Superset B. RIR 0, sista set myo-reps']],
-      null ] },
+      [[2, '10', 10, 3, 'Deload. Inga myo-reps']] ] },
 
     // --- Pass 3 — Tung bänk + rygg · superset C = stångrodd + pushdown ---
     { pass: 'Pass 3', ord: 1, övn: 'Bänkpress', wk: [
       [[1, '5', 112.5, 2, 'Topp, touch-and-go'], [3, '8', 100, 2, 'Back-off']],
       [[1, '4', 117.5, 2, 'Topp'], [3, '8', 102.5, 2, 'Back-off']],
-      [[1, '3', 122.5, 1, 'Topp'], [1, 'AMRAP', 112.5, null, 'Maxreps — stanna vid teknikförfall'], [2, '8', 105, 1, 'Back-off']],
-      [[1, '3', 107.5, 3, 'Deload topp'], [2, '6', 92.5, 3, 'Back-off']] ] },
+      [[1, 'AMRAP', 112.5, null, 'MÄTPUNKT — färsk, direkt efter uppvärmning. Höften kvar, avbryt vid TEKNIKFÖRFALL. 122,5-toppen struken'],
+       [2, '8', 100, 2, 'Back-off (nedsatt från 105)']],
+      [[1, '3', 105, 4, 'Deload topp: vikten nära v3, volymen halverad'], [1, '5', 95, 4, 'Deload back-off']] ] },
     { pass: 'Pass 3', ord: 2, övn: 'Viktade chins', wk: [
-      [[5, '5', 25, 2, 'Medeltung']], [[5, '5', 27.5, 2, 'Medeltung']], [[5, '4', 32.5, 1, 'Medeltung']], [[3, '5', 22.5, 3, 'Deload']] ] },
+      [[5, '5', 25, 2, 'Medeltung']], [[5, '5', 27.5, 2, 'Medeltung']],
+      [[3, '4', 30, 2, 'Nedskuret — blocket ska avslutas, inte testas']],
+      [[2, '3', 27.5, 4, 'Deload: vikten kvar']] ] },
     { pass: 'Pass 3', ord: 3, övn: 'Viktade dips', wk: [
-      [[3, '8', 20, 2, '']], [[3, '7', 22.5, 2, '']], [[4, '6', 27.5, 1, '']], [[2, '8', 15, 3, 'Deload']] ] },
+      [[3, '8', 20, 2, '']], [[3, '7', 22.5, 2, '']],
+      [[3, '6', 22.5, 2, 'Nedskuret från 4×6 @ 27,5']],
+      [[2, '5', 20, 4, 'Deload']] ] },
     { pass: 'Pass 3', ord: 4, övn: 'Stångrodd', wk: [
       [[3, '12', 65, 2, 'Kort vila, ~90 s']],
       [[3, '12', 67.5, 2, 'Kort vila, ~90 s']],
-      [[3, '10', 70, 2, 'Kort vila, ~90 s']],
-      [[2, '12', 55, 3, 'Deload']] ] },
+      [[3, '10', 65, 2, 'Kort vila, ~90 s']],
+      [[2, '8', 62.5, 4, 'Deload']] ] },
     { pass: 'Pass 3', ord: 5, övn: 'Triceps-pushdown', wk: [
       [[3, '12', 40, 1, 'Sista set myo-reps']],
       [[3, '12', 42.5, 1, 'Sista set myo-reps']],
-      [[3, '10', 42.5, 0, 'RIR 0, sista set myo-reps']],
-      null ] },
+      [[2, '12', 40, 1, 'Inga myo-reps']],
+      [[2, '10', 37.5, 3, 'Deload']] ] },
 
     // --- Pass 4 — Ben (submaximalt, diskbråck) · superset D = lårcurl + mage ---
     { pass: 'Pass 4', ord: 1, övn: 'Knäböj', wk: [
       [[3, '6', 105, 3, 'Submax'], [1, '12', 85, 3, 'Back-off']],
       [[4, '5', 110, 2, 'Submax'], [1, '12', 85, 2, 'Back-off']],
-      [[4, '5', 112.5, 2, 'Submax'], [1, '15', 85, 2, 'Back-off']],
-      [[3, '5', 92.5, 3, 'Deload']] ] },
+      [[3, '5', 102.5, 3, 'Submax — nedsatt från 112,5. RIR 3, avsluta blocket'], [1, '12', 80, 3, 'Back-off, lätt']],
+      [[2, '5', 95, 4, 'Deload']] ] },
     { pass: 'Pass 4', ord: 2, övn: 'Marklyft', wk: [
-      [[3, '6', 132.5, 3, 'Kontrollerat']], [[3, '6', 135, 2, 'Kontrollerat']], [[3, '5', 137.5, 2, 'Kontrollerat']], [[2, '6', 115, 3, 'Deload']] ] },
+      [[3, '6', 132.5, 3, 'Kontrollerat']], [[3, '6', 135, 2, 'Kontrollerat']],
+      [[3, '5', 127.5, 3, 'Nedsatt från 137,5. RIR 3 — inget att trycka igenom']],
+      [[2, '5', 115, 4, 'Deload']] ] },
     { pass: 'Pass 4', ord: 3, övn: 'Utfallssteg', wk: [
-      [[2, '10', 65, 2, '']], [[2, '10', 70, 2, '']], [[3, '8', 72.5, 2, '']], null ] },
+      [[2, '10', 65, 2, '']], [[2, '10', 70, 2, '']], [[2, '10', 60, 3, 'Nedskuret']], null ] },
     { pass: 'Pass 4', ord: 4, övn: 'Lårcurl', wk: [
       [[3, '12', 82.5, 2, 'Ställ vikt mot RIR. Kort vila']],
       [[3, '12', 85, 2, 'Ställ vikt mot RIR. Kort vila']],
-      [[3, '10', 87.5, 1, 'Kort vila']],
-      [[2, '12', null, 3, 'Deload, lätt']] ] },
+      [[3, '10', 82.5, 2, 'Kort vila']],
+      [[2, '10', 75, 4, 'Deload']] ] },
     { pass: 'Pass 4', ord: 5, övn: 'Cable crunch / Ab-wheel', wk: [
-      [[3, '15', 36, 2, 'Bål']], [[3, '12', 38, 2, 'Bål']], [[3, '12', 38, 2, 'Bål']], [[2, '12', null, 3, 'Deload']] ] }
+      [[3, '15', 36, 2, 'Bål']], [[3, '12', 38, 2, 'Bål']], [[2, '12', 36, 2, 'Bål']], [[2, '12', 36, 3, 'Deload']] ] }
   ];
 
   const rows = [];
