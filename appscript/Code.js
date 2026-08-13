@@ -161,6 +161,214 @@ function importBankChinsCykel2() {
   return out.length;
 }
 
+// Skapar fliken "Program: Bänk & Chins v2" — efterföljaren till "Bänk & Chins",
+// designad 2026-08-13 ur cykel 1–2-loggen. Skrivs till EGEN flik så att det
+// gamla programmets sista pass + deload kan köras klart först.
+//
+// Grundval: kontrollerat 1RM bänk 130 kg, chins systemvikt-1RM ~152 (+60 adderat)
+// vid 92 kg kroppsvikt. Båda härledda ur loggen, medvetet i underkant (Josefs
+// regel: hellre för lågt inmatat max än för högt).
+//
+// Designen i tre meningar: tre OLIKA bänkpass i stället för tre likadana
+// (undulering är värd ~27 %/v på bänk hos tränade), bänkvolymen ner ~60 % men
+// andelen arbete över 80 % upp från 0,8 till ~6 set/vecka, och EN tung
+// chinsexponering i stället för tre. Vecka 6 = deload enligt Helms: volymen
+// halveras, vikten står kvar.
+//
+// Passfördelning: Pass 1 = måndag (bänk lätt/teknik), Pass 2 = onsdag
+// (bänk tungt), Pass 3 = fredag (chins tungt), Pass 4 = lör/sön (ben).
+function importBankChinsV2() {
+  const SHEET = 'Program: Bänk & Chins v2';
+  const headers = ['Vecka', 'Pass', 'Ordning', 'Övning', 'Set', 'Reps', 'Målvikt', 'RIR', 'Notering'];
+  // wk[i] = veckans segment (array). Segment = [Set, Reps, Målvikt(null=tom), RIR(null=tom), Notering].
+  // ord = fast siffra ELLER array med en ordning per vecka (benpassets A/B-växling
+  // byter plats på knäböj och marklyft varannan vecka).
+  const PROGRAM = [
+
+    // ===== Pass 1 — MÅNDAG · bänk lätt/teknik =====
+    // Tung stång, lätta set. Primar onsdagen 48 h senare. Ska aldrig trötta ut.
+    { pass: 'Pass 1', ord: 1, övn: 'Bänkpress', wk: [
+      [[6, '3', 100, 5, 'Tung stång, LÄTTA set. Max pressintention i varje rep. Höften kvar. Vila 2-3 min']],
+      [[6, '3', 102.5, 5, 'Kontrollerad nedgång utan studs, explosiv press. Höften kvar']],
+      [[6, '3', 105, 4, 'Ska fortfarande kännas lätt. Kvalitet före allt']],
+      [[6, '3', 105, 4, 'Primar onsdagens tunga pass. Höften kvar']],
+      [[5, '3', 102.5, 5, 'Ett set mindre - onsdag är testdag']],
+      [[4, '3', 102.5, 5, 'Deload: vikten kvar, volymen halverad']] ] },
+    { pass: 'Pass 1', ord: 2, övn: 'Breda chins', wk: [
+      [[3, '8-12', null, 3, 'Pronerat brett grepp, kroppsvikt. Sekundärdag - ALDRIG till failure']],
+      [[3, '8-12', null, 3, 'Dubbelprogression: 12 reps på alla set -> lägg på 2,5-5 kg']],
+      [[3, '8-12', null, 3, 'Stanna på RIR 3 - detta skyddar fredagens tunga set']],
+      [[3, '8-12', null, 3, 'Stanna på RIR 3 även om det känns lätt']],
+      [[3, '8-12', null, 3, 'Sista veckan före deload']],
+      [[2, '8', null, 4, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 3, övn: 'Maskinrodd', wk: [
+      [[3, '10-12', null, 3, 'Brett grepp, HÖGA armbågar. Mellersta/nedre trapezius + romboider']],
+      [[3, '10-12', null, 2, 'Brett grepp, höga armbågar']],
+      [[3, '10-12', null, 2, '']],
+      [[3, '10-12', null, 1, '']],
+      [[3, '10-12', null, 1, '']],
+      [[2, '8-10', null, 3, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 4, övn: 'Overhead tricepsextension', wk: [
+      [[3, '10-15', null, 3, 'Långa tricepshuvudet - enda stället det tränas sträckt. Djup stretch']],
+      [[3, '10-15', null, 2, 'Djup stretch i botten']],
+      [[3, '10-15', null, 2, '']],
+      [[3, '10-15', null, 1, '']],
+      [[3, '10-15', null, 0, 'Isolation - failure är billigt här']],
+      [[2, '8-13', null, 3, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 5, övn: 'Reverse flyes', wk: [
+      [[3, '12-20', null, 3, 'Hantel. Kör från samma bänk som triceps + sidolyft, kort vila']],
+      [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 1, '']],
+      [[3, '12-20', null, 0, '']],
+      [[2, '10-18', null, 3, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 6, övn: 'Sidolyft', wk: [
+      [[3, '12-20', null, 3, 'Största symmetrivinsten - mediala delten får inget av bänk eller chins']],
+      [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 1, '']],
+      [[3, '12-20', null, 0, '']],
+      [[2, '10-18', null, 3, 'Deload']] ] },
+
+    // ===== Pass 2 — ONSDAG · bänk tungt =====
+    // Blockets enda tunga bänkexponering. Topp-set + back-off, Micha-modell:
+    // repsen faller 5-4-3-2 medan vikten stiger. Back-off 2-5 % under toppen.
+    { pass: 'Pass 2', ord: 1, övn: 'Bänkpress', wk: [
+      [[1, '5', 102.5, 3, 'TOPPSET. Höften kvar = godkänt set. Vila 4-5 min före'],
+       [3, '5', 100, 3, 'Back-off. TAK: sista setet max 1 RPE över första - annars är övningen slut']],
+      [[1, '4', 107.5, 2, 'TOPPSET. Höften kvar. Vila 4-5 min före'],
+       [4, '4', 105, 3, 'Back-off. Sista setet max 1 RPE över första']],
+      [[1, '3', 112.5, 2, 'TOPPSET. Höften kvar'],
+       [4, '3', 107.5, 3, 'Back-off. Sista setet max 1 RPE över första']],
+      [[1, '2', 117.5, 1, 'TOPPSET 90% - BLOCKETS TEKNIKPROV. Lyfter höften = underkänt, vikten står kvar'],
+       [3, '3', 112.5, 2, 'Back-off. Blockets tyngsta post - stanna vid taket']],
+      [[1, 'AMRAP', 112.5, null, 'MÄTPUNKT. Höften kvar, avbryt vid TEKNIKFÖRFALL. 5 reps=130, 6=132,5, 7=135, 8+=137,5'],
+       [2, '4', 105, 3, 'Back-off']],
+      [[1, '3', 100, 4, 'Deload: vikten ner, repsen ner, volymen halverad'],
+       [2, '3', 92.5, 4, 'Deload']] ] },
+    { pass: 'Pass 2', ord: 2, övn: 'Sälrodd', wk: [
+      [[3, '10-12', null, 3, 'Brett grepp, höga armbågar. Noll ryggbelastning - bålen helt avlastad']],
+      [[3, '10-12', null, 2, '']],
+      [[3, '10-12', null, 2, '']],
+      [[3, '10-12', null, 1, '']],
+      [[3, '10-12', null, 1, '']],
+      [[2, '8-10', null, 3, 'Deload']] ] },
+    { pass: 'Pass 2', ord: 3, övn: 'Lutande hantelpress', wk: [
+      [[3, '8-10', null, 3, 'Övre bröstet - regionen plan bänk underförsörjer']],
+      [[3, '8-10', null, 2, '']],
+      [[3, '8-10', null, 2, '']],
+      [[3, '8-10', null, 1, '']],
+      [[3, '8-10', null, 1, '']],
+      [[2, '6-8', null, 3, 'Deload']] ] },
+    { pass: 'Pass 2', ord: 4, övn: 'Sidolyft', wk: [
+      [[3, '12-20', null, 3, '']], [[3, '12-20', null, 2, '']], [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 1, '']], [[3, '12-20', null, 0, '']], [[2, '10-18', null, 3, 'Deload']] ] },
+    { pass: 'Pass 2', ord: 5, övn: 'Face pull', wk: [
+      [[2, '15-20', null, 3, 'Bakre delt + utåtrotation. Axelförsäkring']],
+      [[2, '15-20', null, 2, '']], [[2, '15-20', null, 2, '']],
+      [[2, '15-20', null, 1, '']], [[2, '15-20', null, 1, '']], [[2, '15-20', null, 3, 'Deload']] ] },
+
+    // ===== Pass 3 — FREDAG · chins tungt =====
+    // Veckans enda tunga dragexponering. Vikterna satta mot loggen, inte mot tabell.
+    // Måste gå att köra med benpasset dagen efter: ett set nära max, ingen tung
+    // stångpress, ingen ryggbelastning (chins avlastar ryggraden).
+    { pass: 'Pass 3', ord: 1, övn: 'Viktade chins', wk: [
+      [[1, '5', 27.5, 3, 'TOPPSET. Först i passet, färsk. Vila 4-5 min före. (Du gjorde detta 26/7 på RIR 2-3)'],
+       [3, '6', 17.5, 3, 'Back-off. AVBRYT när farten tydligt sjunker - reps efter det försämrar utfallet']],
+      [[1, '4', 32.5, 2, 'TOPPSET. (Du gjorde detta 3/8)'],
+       [3, '6', 20, 3, 'Back-off. Avbryt vid tydligt fartapp']],
+      [[1, '3', 35, 2, 'TOPPSET. (Du tog 5 reps här 10/8 - trean ska sitta)'],
+       [3, '5', 22.5, 2, 'Back-off. Avbryt vid tydligt fartapp']],
+      [[1, '2', 40, 1, 'TOPPSET - blockets nya mark. Systemvikt 132 kg'],
+       [3, '5', 25, 2, 'Back-off']],
+      [[1, 'AMRAP', 32.5, null, 'MÄTPUNKT. 5 reps=+30 nästa block, 6=+32,5, 7=+35, 8+=+37,5'],
+       [2, '6', 20, 2, 'Back-off']],
+      [[1, '4', 22.5, 4, 'Deload'],
+       [2, '5', 12.5, 3, 'Deload']] ] },
+    { pass: 'Pass 3', ord: 2, övn: 'Bänkpress smalt grepp', wk: [
+      [[3, '6', 87.5, 3, 'ALDRIG en kamp. Smalt grepp ligger 8-10 % under vanlig bänk - 87,5 ÄR RIR 3 här']],
+      [[3, '6', 90, 3, 'Höj bara när alla 3 set känns RIR 3 eller lättare']],
+      [[3, '6', 92.5, 3, 'Finns för stångkontakt och triceps - inget annat']],
+      [[3, '6', 92.5, 3, 'Pressas aldrig framåt']],
+      [[3, '5', 92.5, 3, '']],
+      [[2, '6', 80, 4, 'Deload']] ] },
+    { pass: 'Pass 3', ord: 3, övn: 'Viktade dips', wk: [
+      [[3, '8', 15, 3, 'Kontrollerad ROM för axeln']],
+      [[3, '8', 17.5, 2, '']],
+      [[3, '7', 20, 2, '']],
+      [[3, '6', 22.5, 1, 'Stannar på RIR 1 - flerledsövning, aldrig failure (Helms)']],
+      [[3, '8', 17.5, 1, '']],
+      [[2, '8', 10, 3, 'Deload']] ] },
+    { pass: 'Pass 3', ord: 4, övn: 'Sidolyft', wk: [
+      [[3, '12-20', null, 3, '']], [[3, '12-20', null, 2, '']], [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 1, '']], [[3, '12-20', null, 0, '']], [[2, '10-18', null, 3, 'Deload']] ] },
+    { pass: 'Pass 3', ord: 5, övn: 'Spidercurl', wk: [
+      [[2, '10-15', null, 3, 'Enda direkta bicepsarbetet - chinsen gör resten']],
+      [[2, '10-15', null, 2, '']], [[2, '10-15', null, 2, '']],
+      [[2, '10-15', null, 1, '']], [[2, '10-15', null, 0, 'Isolation - failure är billigt här']],
+      [[2, '8-13', null, 3, 'Deload']] ] },
+
+    // ===== Pass 4 — LÖR/SÖN · ben =====
+    // A/B-växling: knäböj och marklyft är ALDRIG tunga samma dag. Den primära
+    // lyften går först (därav ordning-arrayen). Allt på RIR 3 - passet får
+    // aldrig köras trött, och det är därför vikterna ligger under vad du klarar.
+    { pass: 'Pass 4', ord: [1, 2, 1, 2, 1, 1], övn: 'Knäböj', wk: [
+      [[4, '6', 100, 3, 'A-VECKA: primär, går först. ALLT på RIR 3. Värm upp: 5 min cykel + 2x15-20 lätta bensparkar']],
+      [[3, '8', 90, 3, 'B-vecka: stödjande. RIR 3']],
+      [[4, '6', 102.5, 3, 'A-VECKA: primär, går först']],
+      [[3, '8', 92.5, 3, 'B-vecka: stödjande']],
+      [[4, '5', 105, 3, 'A-VECKA: primär, går först']],
+      [[2, '6', 90, 4, 'Deload']] ] },
+    { pass: 'Pass 4', ord: [2, 1, 2, 1, 2, 2], övn: 'Marklyft', wk: [
+      [[3, '5', 115, 3, 'Stödjande. Utan remmar: fler set, färre reps - greppet nollställs mellan seten']],
+      [[5, '5', 122.5, 3, 'PRIMÄR - går först. Ta SÖNDAG om du kan, greppet behöver vila från fredagens chins']],
+      [[3, '5', 117.5, 3, 'Stödjande']],
+      [[5, '5', 127.5, 3, 'PRIMÄR - går först. Söndag om möjligt']],
+      [[3, '5', 120, 3, 'Stödjande']],
+      [[2, '5', 105, 4, 'Deload']] ] },
+    { pass: 'Pass 4', ord: 3, övn: 'Gående utfall', wk: [
+      [[3, '10-12/ben', null, 3, 'HANTLAR i händerna, inte stång på ryggen - bråkdel av kompressionen']],
+      [[3, '10-12/ben', null, 3, 'Hantlar i händerna']],
+      [[3, '10-12/ben', null, 2, '']],
+      [[3, '10-12/ben', null, 2, '']],
+      [[3, '10-12/ben', null, 2, '']],
+      [[2, '8-10/ben', null, 3, 'Deload']] ] },
+    { pass: 'Pass 4', ord: 4, övn: 'Cable crunch', wk: [
+      [[3, '12-15', null, 3, 'Bål']], [[3, '12-15', null, 2, '']], [[3, '12-15', null, 2, '']],
+      [[3, '12-15', null, 1, '']], [[3, '12-15', null, 1, '']], [[2, '10-13', null, 3, 'Deload']] ] }
+  ];
+
+  const rows = [];
+  let idx = 0;
+  PROGRAM.forEach(function (ex) {
+    ex.wk.forEach(function (segs, i) {
+      if (!segs) return;
+      // ord får vara en siffra (samma alla veckor) eller en array (en per vecka).
+      const ord = Array.isArray(ex.ord) ? ex.ord[i] : ex.ord;
+      segs.forEach(function (s) {
+        rows.push([i + 1, ex.pass, ord, ex.övn, s[0], s[1],
+          (s[2] === null ? '' : s[2]), (s[3] === null || s[3] === undefined ? '' : s[3]), s[4] || '', idx++]);
+      });
+    });
+  });
+  // Vecka → pass → ordning → insättningsordning (sista nyckeln bevarar segmentordning, topp före back-off).
+  rows.sort(function (a, b) {
+    return (a[0] - b[0]) || String(a[1]).localeCompare(String(b[1])) || (a[2] - b[2]) || (a[9] - b[9]);
+  });
+  const out = rows.map(function (r) { return r.slice(0, 9); });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET);
+  if (!sh) sh = ss.insertSheet(SHEET);
+  sh.clear();
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+  // Formatera Reps som text så fritext (t.ex. "AMRAP", "10-12/ben") inte tolkas som datum/tal.
+  sh.getRange(2, headers.indexOf('Reps') + 1, out.length, 1).setNumberFormat('@');
+  sh.getRange(2, 1, out.length, headers.length).setValues(out);
+  sh.setFrozenRows(1);
+  return out.length;
+}
+
 // --- helpers ---
 
 function _readSheet(name) {
