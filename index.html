@@ -51,6 +51,13 @@
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
+    // Portrait-lås. Manifestets "orientation" gör jobbet i den installerade
+    // appen; detta är backupen för webbläsare som ignorerar manifestet men
+    // tillåter API:t. I en vanlig flik avvisas lock() alltid - därav catch.
+    if (screen.orientation && screen.orientation.lock) {
+      try { screen.orientation.lock('portrait').catch(function () {}); } catch (e) {}
+    }
+
     const EXEC_URL = 'https://script.google.com/macros/s/AKfycbzea4Z6Nzkz3SecXaHU4lFQHLIKHv-3Kb4aqmmrXboybmXRx-mqf_sGbf0NnahKwnfS/exec';
     // Inbäddat läge (iframe) är förstahandsvalet — det döljer Apps Script-bannern
     // och Androids flikrubrik. Misslyckas det (utloggad, eller tredjeparts-cookies
