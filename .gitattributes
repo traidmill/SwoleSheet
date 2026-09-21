@@ -1,0 +1,12 @@
+# Repot flyttades från Windows 2026-09-21 och allt hade CRLF, vilket dränkte
+# varje git diff i tusentals rader radslutsbrus. Tvinga LF i repot.
+# OBS: normaliseringen (git add --renormalize .) är ÄNNU INTE körd — den ska
+# göras i en EGEN commit, efter att pågående arbete är incheckat, annars blandas
+# radslutsbytet ihop med riktiga ändringar.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.xlsx binary
+*.zip binary
