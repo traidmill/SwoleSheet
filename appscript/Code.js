@@ -492,6 +492,303 @@ function importBankChinsV2() {
   return out.length;
 }
 
+// Skapar fliken "Program: Bänk & Chins v3" — efterföljaren till v2, designad
+// 2026-09-21 ur v2:s femveckorslogg (337 set, 19 av 19 planerade pass körda).
+//
+// GRUNDVALEN FLYTTAD: BÄNK 130 -> 137,5. v2:s mätpunkt gav 10 reps på 112,5
+// mot en baslinje på 5 den 14/8. Greppet var bekräftat oförändrat (maximal
+// bredd) hela blocket, så mätningen är protokollidentisk och jämförbar - det
+// är en äkta fördubbling, inte en ny nollpunkt. Epley ger 150 på tio reps,
+// 146 på nio (noteringen sa "kanske tveksamt utförande på sista").
+// 137,5 ligger 8-12 kg UNDER formlerna, av två skäl: 14/8-baslinjen togs i
+// vecka 3 av ett block som gått på RIR 0, alltså trött, vilket överdriver
+// förbättringen; och David tränar aldrig singlar, så neural vana vid maximal
+// last saknas och ett testat max underpresterar regelmässigt mot formeln.
+// Josefs regel avgör resten: hellre för lågt inmatat max än för högt.
+// Kontroll på att 137,5 är konservativt: mot det maxet förutsäger Epley 6,7
+// reps på 112,5. Han gjorde 10. Modellen slås alltså med tre reps.
+//
+// INGA SINGLAR. Davids beslut 2026-09-21: inget 1RM-test förrän det SKATTADE
+// maxet passerat 160. Därför är AMRAP:en blockets enda mätinstrument, och
+// därför måste protokollet vara identiskt mellan block - samma grepp, samma
+// stoppregel vid teknikförfall, ingen primer i mätveckan.
+//
+// GREPPHYPOTESEN ÄR FALSIFIERAD. v2 föreskrev ett grepptest i vecka 1 på
+// resonemanget att ringgreppet på 196 cm ger för stor abduktion och att David
+// betalar tävlingsgreppets axelkostnad utan att tävla. Han körde maxbredd hela
+// blocket ändå - och höger axel var HELT symtomfri i fem veckor, mot
+// återkommande besvär i föregående block. Greppet var alltså inte orsaken.
+// Det som löste axeln var det övriga v2 gjorde, och det rörs inte här:
+// bänkvolymen ner ~73 % (133 -> 36 reps/vecka), cuen att "höften kvar" INTE
+// betyder platt rygg, pumpbänken borttagen, face pull kvar. Inget grepptest
+// i v3 - David kör maximal bredd och trivs med det.
+//
+// STRUKTUREN ÄR VALIDERAD OCH ORÖRD. v2 skar bänkvolymen 73 % och femdubblade
+// arbetet över 80 % (1,2 -> 6,1 set/vecka) medan tonnaget föll från 12,2 till
+// 3,8 ton. Mätpunkten steg ändå kraftigt, och varenda accessoar progresserade.
+// Procentsatserna är identiska med v2:s - v3 är samma block mot ett rättat max:
+//   toppset v1-v4 = 80 / 84 / 87 / 91 %   (v2 låg på 79 / 83 / 87 / 90 %)
+//
+// MÄTPUNKTEN FLYTTAD 112,5 -> 117,5. Tio reps mäter uthållighet snarare än
+// styrka, och davids egen notering sa att tionde repet var tveksamt - står
+// vikten kvar siktar nästa mätning på 12-13 reps, alltså fler reps i zonen
+// där tekniken glider. 117,5 är 85 % och landar i 7-8-repsfönstret. Steget
+// är +5 och inte +7,5 på Davids invändning att 120 kändes stressat; han möter
+// dessutom mätdagen på en vikt han redan dragit tyngre (120x3 i vecka 3).
+//
+// ÄNDRINGAR UR v2:S LOGG, var och en med sin orsak:
+//  - Knäböj -5 % OCH angiven vikt omskriven till ett TAK. Han träffade varje
+//    set men noterade "0-1 rir", "1-2 rir" och "Snarare rir 1-2 på alla set"
+//    där planen sa RIR 3. Benpasset ska vara återhämtningsneutralt - körs det
+//    på RIR 0-1 gör det motsatsen, och ryggen är begränsningen. Maxet går inte
+//    att härleda ur tre RIR-kommentarer (A-veckan pekar på 128, B-veckan på
+//    116, och den senare hade "glömde benvärmare"), därför en rak sänkning
+//    plus instruktionen att sänka hellre än att kämpa.
+//  - Marklyft: planerad vikt är ett TAK. Vecka 3 togs 120 när planen sa 117,5,
+//    och det var precis där ryggen sa ifrån ("Läskigt med ryggen, skärpning").
+//    Veckan efter gick 5x5 @ 127,5 rent, så vikten i sig är inte farlig -
+//    mönstret att överskrida planen på just marklyft är det som är dyrt.
+//  - Spidercurl 10-15 -> 15-25 reps. Stången är fast på 30 kg och han har
+//    progresserat på reps tills övningen inte längre gör det den var skriven
+//    för: 24-25 reps med rest-pause i vecka 4-5. Intervallet matchar nu
+//    verkligheten i stället för att beskriva en övning som inte körs.
+//  - Gående utfall 3 -> 2 set. Han körde två redan i vecka 1 ("Körde bara två
+//    set") och säger att tre är svårt att förmå sig till. Ett program som följs
+//    slår ett som inte följs, och benpassets tyngd ligger i knäböj och marklyft.
+//    Hantlar kvar som förstahandsval - han bedömer inte att stången påverkade
+//    ryggen, men hantlar är fortfarande lägre kompression och han trivs med dem.
+//  - Militärpressen är blockets försiktigaste post. 62,5x6 på ärlig RIR 1 ger
+//    e1RM ~77, och då är 65x6 INTE möjligt i vecka 1. Rampen går därför
+//    60 -> 62,5 -> 65 -> 65 -> 65 med REPSEN sist: vecka 5:s 3x6 @ 65 blir
+//    blockets mål, ~e1RM 82. v2 gav +13 på militären, men det var återerövrad
+//    mark efter juni-omstarten; härifrån går det långsammare.
+//  - Deloadens chins rättad. v2 skrev "vikten kvar, volymen halverad" men
+//    sänkte i praktiken +22,5 -> +17,5 på måndagen. Nu står vikten kvar.
+//
+// Passfördelning oförändrad: Pass 1 = måndag (bänk lätt/teknik), Pass 2 =
+// onsdag (bänk tungt), Pass 3 = fredag (chins tungt), Pass 4 = lör/sön (ben).
+// Inget pass växer - Pass 1 låg på 79 min median och Pass 3 på 92, och David
+// bedömer att tiden går att hantera men inte att den tål mer.
+// Accessoarernas ordning är satt så att den som stryks vid tidsbrist (bakifrån)
+// betyder minst för bänk och chins - därav sidolyft sist i alla pass.
+function importBankChinsV3() {
+  const SHEET = 'Program: Bänk & Chins v3';
+  const headers = ['Vecka', 'Pass', 'Ordning', 'Övning', 'Set', 'Reps', 'Målvikt', 'RIR', 'Vila', 'Notering'];
+  // wk[i] = veckans segment (array). Segment = [Set, Reps, Målvikt(null=tom), RIR(null=tom), Notering].
+  // ord = fast siffra ELLER array med en ordning per vecka (benpassets A/B-växling).
+  const PROGRAM = [
+
+    // ===== Pass 1 — MÅNDAG · bänk lätt/teknik =====
+    // Tung stång, lätta set. Primar onsdagen 48 h senare. Ska aldrig trötta ut.
+    // 78-82 % av 137,5 — samma relativa position som v2:s 77-81 % av 130.
+    { pass: 'Pass 1', ord: 1, övn: 'Bänkpress', vila: '2-3 min', wk: [
+      [[6, '3', 107.5, 5, 'Tung stång, LÄTTA set. Max pressintention i varje rep. Överryggen välvd, skulderbladen ihop och ner - höften kvar betyder INTE platt rygg. Det var den cuen plus den sänkta volymen som tystade axeln i v2, inte greppet']],
+      [[6, '3', 110, 5, 'Kontrollerad nedgång utan studs, explosiv press. Höften kvar']],
+      [[6, '3', 112.5, 4, 'RIR 4 och inte 5 är en ärlig etikett, inte en skärpning - en trea här lämnar 3-4 reps, inte 5']],
+      [[6, '3', 112.5, 4, 'Primar onsdagens tunga pass. Höften kvar']],
+      [[5, '3', 110, 5, 'Ett set mindre - onsdag är mätdag']],
+      [[4, '3', 110, 5, 'Deload: vikten kvar, volymen ner']] ] },
+    // Måndagsprincipen gäller båda huvudlyften. +30 för en trea när han tog
+    // +40x3 i v2:s vecka 4 - det ska kännas löjligt lätt.
+    { pass: 'Pass 1', ord: 2, övn: 'Viktade chins (lätt)', vila: '2-3 min', wk: [
+      [[4, '3', 25, 5, 'Tung stång, LÄTTA set - chinsversionen. Explosiv uppgång, kontrollerad ner. ALDRIG till failure']],
+      [[4, '3', 27.5, 5, 'Ska kännas lätt. Kvalitet före allt']],
+      [[4, '3', 30, 4, 'Primar fredagens tunga set']],
+      [[4, '3', 30, 4, 'Aldrig en kamp - då är vikten fel']],
+      [[3, '3', 27.5, 5, 'Ett set mindre - fredag är mätdag']],
+      [[2, '3', 27.5, 5, 'Deload: vikten kvar, volymen ner. (v2 sänkte vikten här trots att texten sa annat - rättat)']] ] },
+    { pass: 'Pass 1', ord: 3, övn: 'Maskinrodd', vila: '2 min', wk: [
+      [[3, '10-12', null, 3, 'Brett grepp, HÖGA armbågar. Mellersta/nedre trapezius + romboider']],
+      [[3, '10-12', null, 2, 'Brett grepp, höga armbågar']],
+      [[3, '10-12', null, 2, '']],
+      [[3, '10-12', null, 1, '']],
+      [[3, '10-12', null, 1, '']],
+      [[2, '8-10', null, 3, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 4, övn: 'Overhead tricepsextension', vila: '60-90 s', wk: [
+      [[3, '10-15', null, 3, 'Långa tricepshuvudet - enda stället det tränas sträckt. Djup stretch']],
+      [[3, '10-15', null, 2, 'Djup stretch i botten']],
+      [[3, '10-15', null, 2, '']],
+      [[3, '10-15', null, 1, '']],
+      [[3, '10-15', null, 0, 'Isolation - failure är billigt här']],
+      [[2, '8-13', null, 3, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 5, övn: 'Incline hantelcurl', vila: '60-90 s', wk: [
+      [[3, '8-12', null, 3, 'Armen bakom bålen = sträckt läge. Här kan du lägga på vikt - gjorde 12 -> 14 kg under v2 utan problem']],
+      [[3, '8-12', null, 2, 'Full stretch i botten, ingen svikt']],
+      [[3, '8-12', null, 2, '']],
+      [[3, '8-12', null, 1, '']],
+      [[3, '8-12', null, 0, 'Isolation - failure är billigt här']],
+      [[2, '8-10', null, 3, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 6, övn: 'Reverse flyes', vila: '60-90 s', wk: [
+      [[3, '12-20', null, 3, 'Hantel. Kör från samma bänk som triceps + sidolyft, kort vila']],
+      [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 1, '']],
+      [[3, '12-20', null, 0, '']],
+      [[2, '10-18', null, 3, 'Deload']] ] },
+    { pass: 'Pass 1', ord: 7, övn: 'Sidolyft', vila: '60-90 s', wk: [
+      [[3, '12-20', null, 3, 'Största symmetrivinsten - mediala delten får inget av bänk eller chins']],
+      [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 1, '']],
+      [[3, '12-20', null, 0, '']],
+      [[2, '10-18', null, 3, 'Deload']] ] },
+
+    // ===== Pass 2 — ONSDAG · bänk tungt =====
+    // Blockets enda tunga bänkexponering. Topp-set + back-off, Micha-modell:
+    // repsen faller 5-4-3-2 medan vikten stiger. Back-off 2-4 % under toppen.
+    { pass: 'Pass 2', ord: 1, övn: 'Bänkpress', vilaSeg: ['4-5 min', '3 min'], wk: [
+      [[1, '5', 110, 3, 'TOPPSET 80 %. Sista uppvärmningen = 1 SINGEL på 110. Höften kvar = godkänt set. Överryggen välvd, skulderbladen ihop och ner'],
+       [3, '5', 107.5, 3, 'Back-off. TAK: sista setet max 1 RPE över första - annars är övningen slut']],
+      [[1, '4', 115, 2, 'TOPPSET 84 %. Sista uppvärmningen = 1 SINGEL på 115. Höften kvar'],
+       [4, '4', 112.5, 3, 'Back-off. Sista setet max 1 RPE över första']],
+      [[1, '3', 120, 2, 'TOPPSET 87 %. Sista uppvärmningen = 1 SINGEL på 120. Höften kvar'],
+       [4, '3', 115, 3, 'Back-off. Sista setet max 1 RPE över första']],
+      [[1, '2', 125, 1, 'TOPPSET 91 % - blockets tyngsta stång. Primer: 1 singel på 120 (UNDER toppsetet). Lyfter höften = underkänt, vikten står kvar'],
+       [3, '3', 120, 2, 'Back-off. Blockets tyngsta post räknat över 85 % - stanna vid taket']],
+      [[1, 'AMRAP', 117.5, null, 'MÄTPUNKT, 85 %. INGEN primer - protokollet måste vara identiskt med förra blockets för att vara jämförbart. Avbryt vid TEKNIKFÖRFALL, inte failure - annars mäter du stoppregeln och inte styrkan. Du har dragit 120x3 i vecka 3, så vikten är känd mark. Omräkning: 4 reps=133, 5=137,5, 6=141, 7=145, 8=151, 9=153, 10=157'],
+       [2, '4', 112.5, 3, 'Back-off']],
+      [[1, '3', 105, 4, 'Deload: vikten ner, repsen ner, volymen halverad. Tunga dagen behöver mer avlastning än teknikdagen'],
+       [2, '3', 97.5, 4, 'Deload']] ] },
+    // Enda breda pronerade greppet i programmet - rodden ersätter det inte.
+    // Ligger på onsdag för att greppet ska vara utvilat till helgens marklyft.
+    { pass: 'Pass 2', ord: 2, övn: 'Breda chins', vila: '2 min', wk: [
+      [[2, '8-12', null, 3, 'Pronerat brett grepp. Du la på +10 kg under v2 - fortsätt dubbelprogressionen därifrån. ALDRIG till failure']],
+      [[2, '8-12', null, 3, 'Dubbelprogression: 12 reps på båda set -> lägg på 2,5-5 kg']],
+      [[2, '8-12', null, 3, 'Stanna på RIR 3 - detta skyddar fredagens tunga set']],
+      [[2, '8-12', null, 3, 'Stanna på RIR 3 även om det känns lätt']],
+      [[2, '8-12', null, 3, 'Sista veckan före deload']],
+      [[2, '8', null, 4, 'Deload']] ] },
+    { pass: 'Pass 2', ord: 3, övn: 'Sälrodd', vila: '2 min', wk: [
+      [[3, '10-12', null, 3, 'Brett grepp, höga armbågar. Noll ryggbelastning - bålen helt avlastad. Gick 40 -> 53 kg i v2, starta där du slutade']],
+      [[3, '10-12', null, 2, '']],
+      [[3, '10-12', null, 2, '']],
+      [[3, '10-12', null, 1, '']],
+      [[3, '10-12', null, 1, '']],
+      [[2, '8-10', null, 3, 'Deload']] ] },
+    { pass: 'Pass 2', ord: 4, övn: 'Lutande hantelpress', vila: '2 min', wk: [
+      [[3, '8-10', null, 3, 'Övre bröstet - regionen plan bänk underförsörjer. VÄNSTER axel gav ifrån sig här i v2 vecka 2; höll du igen veckan efter gick det bra. Backa hellre ett steg än att jaga vikten']],
+      [[3, '8-10', null, 2, '']],
+      [[3, '8-10', null, 2, '']],
+      [[3, '8-10', null, 1, '']],
+      [[3, '8-10', null, 1, '']],
+      [[2, '6-8', null, 3, 'Deload']] ] },
+    { pass: 'Pass 2', ord: 5, övn: 'Face pull', vila: '60-90 s', wk: [
+      [[2, '15-20', null, 3, 'Bakre delt + utåtrotation. Axelförsäkring - en av de fyra sakerna som tystade höger axel i v2. Stryks aldrig']],
+      [[2, '15-20', null, 2, '']], [[2, '15-20', null, 2, '']],
+      [[2, '15-20', null, 1, '']], [[2, '15-20', null, 1, '']], [[2, '15-20', null, 3, 'Deload']] ] },
+    { pass: 'Pass 2', ord: 6, övn: 'Sidolyft', vila: '60-90 s', wk: [
+      [[3, '12-20', null, 3, '']], [[3, '12-20', null, 2, '']], [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 1, '']], [[3, '12-20', null, 0, '']], [[2, '10-18', null, 3, 'Deload']] ] },
+
+    // ===== Pass 3 — FREDAG · chins tungt =====
+    // Veckans enda tunga dragexponering. Måste gå att köra med benpasset dagen
+    // efter: ett set nära max, ingen tung stångpress, ingen ryggbelastning.
+    // Räknat mot systemvikt-1RM ~154 kg (92 kg kroppsvikt + tillagt), härlett
+    // ur v2:s AMRAP: +32,5 x 7 -> 124,5 x (1+7/30) = 153,6.
+    { pass: 'Pass 3', ord: 1, övn: 'Viktade chins', vilaSeg: ['4-5 min', '3 min'], wk: [
+      [[1, '5', 30, 3, 'TOPPSET. Först i passet, färsk. Sista uppvärmningen = 1 SINGEL på +30. Systemvikt 122 = 79 % av 154'],
+       [3, '6', 20, 3, 'Back-off. AVBRYT när farten tydligt sjunker - reps efter det försämrar utfallet']],
+      [[1, '4', 35, 2, 'TOPPSET. Sista uppvärmningen = 1 SINGEL på +35'],
+       [3, '6', 22.5, 3, 'Back-off. Avbryt vid tydligt fartapp']],
+      [[1, '3', 37.5, 2, 'TOPPSET. Sista uppvärmningen = 1 SINGEL på +37,5'],
+       [3, '5', 25, 2, 'Back-off. Avbryt vid tydligt fartapp']],
+      [[1, '2', 42.5, 1, 'TOPPSET - blockets nya mark. Systemvikt 134,5 = 87 %, exakt samma relativa position som +40 hade mot förra maxet. Du tog +40x3 när planen sa 2. Primer: 1 singel på +37,5 (UNDER toppsetet)'],
+       [3, '5', 27.5, 2, 'Back-off']],
+      [[1, 'AMRAP', 35, null, 'MÄTPUNKT. Ingen primer. Avbryt vid TEKNIKFÖRFALL, inte failure. Omräkning till nästa blocks referens: 5 reps=+32,5, 6=+35, 7=+37,5, 8+=+40'],
+       [2, '6', 22.5, 2, 'Back-off']],
+      [[1, '4', 25, 4, 'Deload'],
+       [2, '5', 15, 3, 'Deload']] ] },
+    // Blockets försiktigaste post. 62,5x6 på ärlig RIR 1 i v2 ger e1RM ~77,
+    // och då är 65x6 inte möjligt i vecka 1. Repsen stiger sist.
+    { pass: 'Pass 3', ord: 2, övn: 'Militärpress', vila: '2-3 min', wk: [
+      [[3, '6', 60, 3, 'Stående, ingen ryggfjäder. Startar under där du slutade - rampen behöver utrymme, och v2:s 62,5x6 gick på ärlig RIR 1']],
+      [[3, '6', 62.5, 2, 'Tillbaka på v2:s slutvikt, nu tidigt i blocket']],
+      [[3, '5', 65, 2, 'Ny mark. Klarar du inte 5 på alla tre set står 65 kvar även v4']],
+      [[3, '5', 65, 1, 'Samma vikt, hårdare. Repsen kommer i vecka 5']],
+      [[3, '6', 65, 1, 'BLOCKETS MÅL: 65x6 ~ e1RM 82. Det är +5 på skattningen över sex veckor - v2 gav +13, men det var återerövrad mark efter juni-omstarten']],
+      [[2, '5', 62.5, 4, 'Deload: volymen halverad']] ] },
+    { pass: 'Pass 3', ord: 3, övn: 'Viktade dips', vila: '2 min', wk: [
+      [[3, '8', 17.5, 3, 'Kontrollerad ROM. BYT till kabelflyes/hantelpress om axeln gnäller ELLER om onsdagens toppset tappar kvalitet två veckor i rad. Villkoret stod i v2 och behövde aldrig användas']],
+      [[3, '8', 20, 2, '']],
+      [[3, '7', 22.5, 2, '']],
+      [[3, '6', 25, 1, 'Stannar på RIR 1 - flerledsövning, aldrig failure (Helms)']],
+      [[3, '8', 20, 1, '']],
+      [[2, '8', 12.5, 3, 'Deload']] ] },
+    { pass: 'Pass 3', ord: 4, övn: 'Spidercurl', vila: '60-90 s', wk: [
+      [[2, '15-25', null, 3, 'Förkortat läge - incline curl på måndagen täcker det sträckta. Intervallet höjt från 10-15: stången är fast på 30 kg och du gjorde 24-25 reps med rest-pause i v2. Det är en pumpavslutning, kör den som en sådan']],
+      [[2, '15-25', null, 2, '']], [[2, '15-25', null, 2, '']],
+      [[2, '15-25', null, 1, '']], [[2, '15-25', null, 0, 'Isolation - failure är billigt här']],
+      [[2, '12-20', null, 3, 'Deload']] ] },
+    { pass: 'Pass 3', ord: 5, övn: 'Sidolyft', vila: '60-90 s', wk: [
+      [[3, '12-20', null, 3, '']], [[3, '12-20', null, 2, '']], [[3, '12-20', null, 2, '']],
+      [[3, '12-20', null, 1, '']], [[3, '12-20', null, 0, '']], [[2, '10-18', null, 3, 'Deload']] ] },
+
+    // ===== Pass 4 — LÖR/SÖN · ben =====
+    // A/B-växling: knäböj och marklyft är ALDRIG tunga samma dag. Den primära
+    // lyften går först (därav ordning-arrayen). Allt på RIR 3 - passet får
+    // aldrig köras trött, för det är förutsättningen för att bänk och chins
+    // ska kunna vara tunga. Angivna vikter är TAK, inte mål.
+    { pass: 'Pass 4', ord: [1, 2, 1, 2, 1, 1], övn: 'Knäböj', vila: '3 min', wk: [
+      [[4, '6', 95, 3, 'A-VECKA: primär, går först. Vikten är ett TAK - går inte RIR 3 på alla set, SÄNK. I v2 träffade du varje set men noterade RIR 0-2 där planen sa 3, och då gör benpasset motsatsen till vad det är till för. Värm upp: 5 min cykel + 2x15-20 lätta bensparkar']],
+      [[3, '8', 85, 3, 'B-vecka: stödjande. RIR 3 på riktigt - sänk hellre']],
+      [[4, '6', 97.5, 3, 'A-VECKA: primär, går först. Taket gäller']],
+      [[3, '8', 87.5, 3, 'B-vecka: stödjande']],
+      [[4, '5', 100, 3, 'A-VECKA: primär, går först']],
+      [[2, '6', 85, 4, 'Deload']] ] },
+    { pass: 'Pass 4', ord: [2, 1, 2, 1, 2, 2], övn: 'Marklyft', vila: '3 min', wk: [
+      [[3, '5', 117.5, 3, 'Stödjande. ANGIVEN VIKT ÄR ETT TAK. I v2 togs 120 när planen sa 117,5 och det var precis där ryggen sa ifrån. Utan remmar: fler set, färre reps - greppet nollställs mellan seten']],
+      [[5, '5', 125, 3, 'PRIMÄR - går först. Ta SÖNDAG om du kan, greppet behöver vila från fredagens chins']],
+      [[3, '5', 120, 3, 'Stödjande. Taket gäller - ingen improviserad påökning']],
+      [[5, '5', 130, 3, 'PRIMÄR - går först. Ny mark, +2,5 mot v2:s topp som gick rent. Söndag om möjligt']],
+      [[3, '5', 122.5, 3, 'Stödjande']],
+      [[2, '5', 107.5, 4, 'Deload']] ] },
+    { pass: 'Pass 4', ord: 3, övn: 'Gående utfall', vila: '2 min', wk: [
+      [[2, '10-12/ben', null, 3, 'HANTLAR i händerna, inte stång på ryggen - bråkdel av kompressionen. Nedskuret till 2 set: du körde två redan i v2 vecka 1, och ett program som följs slår ett som inte följs']],
+      [[2, '10-12/ben', null, 3, 'Hantlar i händerna']],
+      [[2, '10-12/ben', null, 2, '']],
+      [[2, '10-12/ben', null, 2, '']],
+      [[2, '10-12/ben', null, 2, '']],
+      [[2, '8-10/ben', null, 3, 'Deload']] ] },
+    { pass: 'Pass 4', ord: 4, övn: 'Cable crunch', vila: '60-90 s', wk: [
+      [[3, '12-15', null, 3, 'Bål']], [[3, '12-15', null, 2, '']], [[3, '12-15', null, 2, '']],
+      [[3, '12-15', null, 1, '']], [[3, '12-15', null, 1, '']], [[2, '10-13', null, 3, 'Deload']] ] }
+  ];
+
+  const rows = [];
+  let idx = 0;
+  PROGRAM.forEach(function (ex) {
+    ex.wk.forEach(function (segs, i) {
+      if (!segs) return;
+      // ord får vara en siffra (samma alla veckor) eller en array (en per vecka).
+      const ord = Array.isArray(ex.ord) ? ex.ord[i] : ex.ord;
+      segs.forEach(function (s, si) {
+        // Vila sätts per ÖVNING (ex.vila) eller per SEGMENT (ex.vilaSeg) - toppsetet
+        // vilar 4-5 min medan back-off-seten vilar 3, på samma övning.
+        const vila = (ex.vilaSeg && ex.vilaSeg[si]) || ex.vila || '';
+        rows.push([i + 1, ex.pass, ord, ex.övn, s[0], s[1],
+          (s[2] === null ? '' : s[2]), (s[3] === null || s[3] === undefined ? '' : s[3]),
+          vila, s[4] || '', idx++]);
+      });
+    });
+  });
+  // Vecka → pass → ordning → insättningsordning (sista nyckeln bevarar segmentordning, topp före back-off).
+  rows.sort(function (a, b) {
+    return (a[0] - b[0]) || String(a[1]).localeCompare(String(b[1])) || (a[2] - b[2]) || (a[10] - b[10]);
+  });
+  const out = rows.map(function (r) { return r.slice(0, 10); });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET);
+  if (!sh) sh = ss.insertSheet(SHEET);
+  sh.clear();
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+  // Formatera Reps som text så fritext (t.ex. "AMRAP", "10-12/ben") inte tolkas som datum/tal.
+  sh.getRange(2, headers.indexOf('Reps') + 1, out.length, 1).setNumberFormat('@');
+  sh.getRange(2, 1, out.length, headers.length).setValues(out);
+  sh.setFrozenRows(1);
+  return out.length;
+}
+
 // --- helpers ---
 
 function _readSheet(name) {

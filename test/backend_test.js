@@ -234,11 +234,12 @@ eq('Logg-rad fick Program', newLogRow[lCols.indexOf('Program')], 'Volymblock');
 // Radantalen är regressionsvakter: ändrar man ett program ska siffran uppdateras
 // medvetet, inte råka glida. Ett segment = en rad, så summan fångar både
 // borttagna övningar och ändrad segmentstruktur.
-const V1 = 'Bänk & Chins', V2 = 'Bänk & Chins v2';
+const V1 = 'Bänk & Chins', V2 = 'Bänk & Chins v2', V3 = 'Bänk & Chins v3';
 eq('importBankChinsCykel2 radantal', importBankChinsCykel2(), 86);
 eq('importBankChinsV2 radantal', importBankChinsV2(), 144);
-eq('båda programmen syns i _listPrograms',
-  _listPrograms().map(p => p.name).filter(n => n.indexOf('Bänk & Chins') === 0), [V1, V2]);
+eq('importBankChinsV3 radantal', importBankChinsV3(), 144);
+eq('alla tre programmen syns i _listPrograms',
+  _listPrograms().map(p => p.name).filter(n => n.indexOf('Bänk & Chins') === 0), [V1, V2, V3]);
 eq('Bänk & Chins veckor', _getProgramWeeks(V1), [1, 2, 3, 4]);
 eq('Bänk & Chins v2 veckor', _getProgramWeeks(V2), [1, 2, 3, 4, 5, 6]);
 
@@ -308,6 +309,58 @@ eq('v1 Pass 1 bänkpress 4x10 @ 97,5',
   [ex(V1, 1, 0, 'Bänkpress').set, ex(V1, 1, 0, 'Bänkpress').reps, ex(V1, 1, 0, 'Bänkpress').målvikt],
   [4, '10', 97.5]);
 eq('v1 vecka 3 AMRAP-text bevarad', ex(V1, 3, 2, 'Bänkpress').segments[0].reps, 'AMRAP');
+
+// --- Bänk & Chins v3: grundvalen flyttad, strukturen behållen ---
+// v3 bygger på bänkmax 137,5 (upp från 130 efter v2:s AMRAP) och chins
+// systemvikt ~154. Testerna vaktar de beslut som togs ur v2:s logg.
+eq('v3 veckor', _getProgramWeeks(V3), [1, 2, 3, 4, 5, 6]);
+const v3w1 = getProgram(V3, 1);
+eq('v3 pass-ordning', v3w1.map(p => p.pass), ['Pass 1', 'Pass 2', 'Pass 3', 'Pass 4']);
+eq('v3 inget pass har växt', v3w1.map(p => p.exercises.length), [7, 6, 5, 4]);
+
+// Bänkrampen: samma relativa position som v2, mot ett rättat max.
+// 110/115/120/125 = 80/84/87/91 % av 137,5.
+const v3topp = [1, 2, 3, 4].map(w => ex(V3, w, 1, 'Bänkpress').segments[0].målvikt);
+eq('v3 bänk toppset v1-v4', v3topp, [110, 115, 120, 125]);
+const v3back = [1, 2, 3, 4].map(w => ex(V3, w, 1, 'Bänkpress').segments[1].målvikt);
+eq('v3 bänk back-off ligger under toppen', v3back, [107.5, 112.5, 115, 120]);
+
+// Mätpunkten flyttad 112,5 -> 117,5 och ligger UNDER vecka 3:s toppset,
+// så den möts på känd mark. Fritexten AMRAP får inte tolkas som tal.
+const v3amrap = ex(V3, 5, 1, 'Bänkpress').segments[0];
+eq('v3 mätpunkt är AMRAP', v3amrap.reps, 'AMRAP');
+eq('v3 mätpunkt på 117,5', v3amrap.målvikt, 117.5);
+eq('v3 mätvikt under vecka 3:s toppset', v3amrap.målvikt < v3topp[2], true);
+
+// Chins: +42,5 i vecka 4 = systemvikt 134,5 = 87 % av 154, samma relativa
+// position som +40 hade mot förra maxet.
+eq('v3 chins toppset v1-v4',
+  [1, 2, 3, 4].map(w => ex(V3, w, 2, 'Viktade chins').segments[0].målvikt), [30, 35, 37.5, 42.5]);
+eq('v3 chins mätpunkt', ex(V3, 5, 2, 'Viktade chins').segments[0].reps, 'AMRAP');
+
+// Militärpressen: repsen stiger sist, vikten står stilla från v3.
+eq('v3 militärpress vikter',
+  [1, 2, 3, 4, 5].map(w => ex(V3, w, 2, 'Militärpress').målvikt), [60, 62.5, 65, 65, 65]);
+eq('v3 militärpress reps stiger sist',
+  [1, 2, 3, 4, 5].map(w => ex(V3, w, 2, 'Militärpress').reps), ['6', '6', '5', '5', '6']);
+
+// Ändringar ur v2:s logg — var och en vaktad.
+eq('v3 knäböj sänkt 5 %',
+  [1, 3, 5].map(w => ex(V3, w, 3, 'Knäböj').målvikt), [95, 97.5, 100]);
+eq('v3 gående utfall nedskuret till 2 set', ex(V3, 1, 3, 'Gående utfall').set, 2);
+eq('v3 spidercurl matchar hur den körs', ex(V3, 1, 2, 'Spidercurl').reps, '15-25');
+// v2 sa "vikten kvar" i deloaden men sänkte chinsen ändå. Rättat i v3.
+eq('v3 deload behåller måndagschinsens vikt',
+  ex(V3, 6, 0, 'Viktade chins (lätt)').målvikt, ex(V3, 5, 0, 'Viktade chins (lätt)').målvikt);
+
+// A/B-växlingen på benpasset lever kvar.
+eq('v3 benpass v1 leds av knäböj', getProgram(V3, 1)[3].exercises[0].övning, 'Knäböj');
+eq('v3 benpass v2 leds av marklyft', getProgram(V3, 2)[3].exercises[0].övning, 'Marklyft');
+
+// Vila per segment: toppsetet vilar längre än back-off på samma övning.
+eq('v3 vila per segment på bänken',
+  ex(V3, 1, 1, 'Bänkpress').segments.map(s => s.vila), ['4-5 min', '3 min']);
+eq('v3 vila per övning på måndagsbänken', ex(V3, 1, 0, 'Bänkpress').vila, '2-3 min');
 
 // --- PR-detektering: _detectPR (inline) + analyzeSession (auktoritativ) ---
 // Bygg ett deterministiskt scenario direkt i Logg. Kolumner:
