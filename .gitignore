@@ -6,3 +6,8 @@ memory/
 
 # Skärmskott från mobilen — arbetsmaterial för felsökning/design
 skärmskott/
+
+# Genereras av test/build-local.js ur appscript/ — ska aldrig versionshanteras,
+# det var precis så den gamla kopian kunde bli fyra månader gammal obemärkt.
+test/app.html
+node_modules/

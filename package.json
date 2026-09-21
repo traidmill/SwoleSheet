@@ -1,0 +1,11 @@
+{
+  "name": "swolesheet",
+  "private": true,
+  "description": "Träningslogg som Google Apps Script-webapp",
+  "scripts": {
+    "test": "node test/backend_test.js",
+    "check": "node --check appscript/Code.js",
+    "local": "node test/build-local.js && open test/app.html",
+    "push": "cd appscript && clasp push"
+  }
+}
