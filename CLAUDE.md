@@ -2,7 +2,7 @@
 
 Personlig träningslogg som Google Apps Script-webapp med Google Sheets som
 databas. All kod, alla data och all UI-text är på **svenska** — inklusive
-fältnamn (`övning`, `målvikt`, `notering`) och commit-meddelanden.
+fältnamn (`övning`, `målvikt`, `vila`, `notering`) och commit-meddelanden.
 
 ## Struktur
 
@@ -37,9 +37,14 @@ underlag för programdesign). Filerna direkt i
 | `Sessions` | ett pass per rad: `Pass-ID, Pass, Datum, Start-tid, Slut-tid, Notering, Program, Vecka, Cykel, Ändringar` |
 
 Programflikens kolumner: `Vecka, Pass, Ordning, Övning, Set, Reps, Målvikt,
-RIR, Notering`. **`RIR` är valfri** — `_programBundle` läser den via
-`r.colMap['RIR']` i stället för `_col()`, så flikar utan kolumnen fungerar.
-Håll nya kolumner valfria på samma sätt.
+RIR, Vila, Notering`. **`RIR` och `Vila` är valfria** — `_programBundle` läser
+dem via `r.colMap[...]` i stället för `_col()` och faller tillbaka på `''`, så
+äldre flikar (t.ex. Cykel 2, som saknar `Vila`) fungerar oförändrat. Håll nya
+kolumner valfria på samma sätt.
+
+Vila sätts i importfunktionerna antingen per övning (`ex.vila`) eller per
+segment (`ex.vilaSeg`), så ett toppset kan vila 4-5 min medan back-off-seten
+på samma övning vilar 3.
 
 Flera rader med samma `Ordning` + `Övning` blir **segment** av samma övning
 (toppset + back-off med olika vikt). Frontend hanterar dem via `exSegments()`,

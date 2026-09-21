@@ -218,7 +218,7 @@
     function exSegments(ex) {
       return (ex.segments && ex.segments.length)
         ? ex.segments
-        : [{ set: ex.set, reps: ex.reps, målvikt: ex.målvikt, rir: ex.rir, notering: ex.notering }];
+        : [{ set: ex.set, reps: ex.reps, målvikt: ex.målvikt, rir: ex.rir, vila: ex.vila, notering: ex.notering }];
     }
     // Segmentet som täcker 1-baserat set n (fallback sista segmentet för "extra" set).
     function segForSet(ex, n) {
@@ -236,11 +236,12 @@
         return (s.reps === null || s.reps === undefined || s.reps === '') ? (s.set + ' set') : (s.set + '×' + s.reps);
       }).join(' + ');
     }
-    // Måltext för ett segment: "set × reps @ vikt kg · RIR n" (rå text, esc:as vid utskrift).
+    // Måltext för ett segment: "set × reps @ vikt kg · RIR n · Vila 3 min" (rå text, esc:as vid utskrift).
     function segTarget(s) {
       let t = s.set + ' × ' + s.reps;
       if (s.målvikt !== null && s.målvikt !== undefined && s.målvikt !== '') t += ' @ ' + fmtNum(s.målvikt) + ' kg';
       if (s.rir !== null && s.rir !== undefined && s.rir !== '') t += ' · RIR ' + s.rir;
+      if (s.vila) t += ' · Vila ' + s.vila;
       return t;
     }
     function fmtVolume(n) {
@@ -332,20 +333,21 @@
       const out = pass.exercises.map(function (ex) {
         const to = subs[ex.övning];
         if (!to) return ex;
-        // Substitut: behåll set/reps-schema men nolla vikt/RIR (annan övning, fritt mål).
+        // Substitut: behåll set/reps-schema OCH vila (strukturen gäller fortfarande)
+        // men nolla vikt/RIR — annan övning, fritt mål.
         const segs = exSegments(ex).map(function (s) {
-          return { set: s.set, reps: s.reps, målvikt: null, rir: null, notering: '' };
+          return { set: s.set, reps: s.reps, målvikt: null, rir: null, vila: s.vila, notering: '' };
         });
         return {
           övning: to, ordning: ex.ordning, set: ex.set, reps: ex.reps,
-          målvikt: null, rir: null, notering: '', segments: segs, _subFrom: ex.övning
+          målvikt: null, rir: null, vila: ex.vila, notering: '', segments: segs, _subFrom: ex.övning
         };
       });
       (mods.added || []).forEach(function (name, i) {
         out.push({
           övning: name, ordning: 9000 + i, set: 3, reps: '',
-          målvikt: null, rir: null, notering: '',
-          segments: [{ set: 3, reps: '', målvikt: null, rir: null, notering: '' }],
+          målvikt: null, rir: null, vila: '', notering: '',
+          segments: [{ set: 3, reps: '', målvikt: null, rir: null, vila: '', notering: '' }],
           _adhoc: true
         });
       });
@@ -1401,6 +1403,7 @@
         målBits.push('Mål ' + fmtNum(curSeg.målvikt) + ' kg');
       }
       if (curSeg && curSeg.rir !== null && curSeg.rir !== undefined && curSeg.rir !== '') målBits.push('RIR ' + curSeg.rir);
+      if (curSeg && curSeg.vila) målBits.push('Vila ' + curSeg.vila);
       const målPart = målBits.length ? ' · ' + esc(målBits.join(' · ')) : '';
       parent.appendChild(el(
         '<div class="ex-head">' +

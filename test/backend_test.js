@@ -222,7 +222,7 @@ eq('Logg-rad fick Program', newLogRow[lCols.indexOf('Program')], 'Volymblock');
 // borttagna övningar och ändrad segmentstruktur.
 const V1 = 'Bänk & Chins', V2 = 'Bänk & Chins v2';
 eq('importBankChinsCykel2 radantal', importBankChinsCykel2(), 86);
-eq('importBankChinsV2 radantal', importBankChinsV2(), 132);
+eq('importBankChinsV2 radantal', importBankChinsV2(), 144);
 eq('båda programmen syns i _listPrograms',
   _listPrograms().map(p => p.name).filter(n => n.indexOf('Bänk & Chins') === 0), [V1, V2]);
 eq('Bänk & Chins veckor', _getProgramWeeks(V1), [1, 2, 3, 4]);
@@ -237,8 +237,18 @@ function ex(prog, vecka, passIdx, namn) {
 const v2w1 = getProgram(V2, 1);
 eq('v2 pass-ordning', v2w1.map(p => p.pass), ['Pass 1', 'Pass 2', 'Pass 3', 'Pass 4']);
 eq('v2 Pass 1 övningar', v2w1[0].exercises.map(e => e.övning),
-  ['Bänkpress', 'Breda chins', 'Maskinrodd', 'Overhead tricepsextension', 'Reverse flyes', 'Sidolyft']);
+  ['Bänkpress', 'Viktade chins (lätt)', 'Maskinrodd', 'Overhead tricepsextension',
+   'Incline hantelcurl', 'Reverse flyes', 'Sidolyft']);
 eq('v2 Pass 3 leds av tunga chins, inte bänk', v2w1[2].exercises[0].övning, 'Viktade chins');
+
+// Revisionen 2026-08-13/14: måndagens breda chins blev viktade (måndagsprincipen
+// "tung stång, lätta set" gäller båda huvudlyften), breda chins flyttade till
+// onsdagen, och militärpressen ersatte bänkpress smalt grepp på fredagen.
+eq('breda chins ligger på onsdagen', v2w1[1].exercises.some(e => e.övning === 'Breda chins'), true);
+eq('breda chins INTE kvar på måndagen', v2w1[0].exercises.some(e => e.övning === 'Breda chins'), false);
+eq('militärpress ersatte smalbänken', v2w1[2].exercises.map(e => e.övning).indexOf('Militärpress') >= 0, true);
+eq('bänkpress smalt grepp borta', v2w1[2].exercises.some(e => e.övning === 'Bänkpress smalt grepp'), false);
+eq('incline hantelcurl tillagd på måndagen', ex(V2, 1, 0, 'Incline hantelcurl') !== undefined, true);
 
 // Segmentgruppering: toppset + back-off blir EN övning med två segment,
 // och .set är summan av segmentens set (1 + 3 = 4).
@@ -250,6 +260,17 @@ eq('v2 onsdagsbänk .set = summan', v2bänk.set, 4);
 const v2chins = ex(V2, 1, 2, 'Viktade chins');
 eq('v2 fredagschins 2 segment', v2chins.segments.length, 2);
 eq('v2 fredagschins toppset +27,5', v2chins.segments[0].målvikt, 27.5);
+
+// Vila-kolumnen. Sätts antingen per ÖVNING (ex.vila) eller per SEGMENT
+// (ex.vilaSeg) — toppsetet vilar längre än back-off på samma övning.
+eq('vila per övning: måndagsbänken', ex(V2, 1, 0, 'Bänkpress').vila, '2-3 min');
+eq('vila per övning: sidolyft', ex(V2, 1, 0, 'Sidolyft').vila, '60-90 s');
+eq('vila per segment: toppset vilar längre',
+  v2bänk.segments.map(s => s.vila), ['4-5 min', '3 min']);
+eq('övningens vila = första segmentets', v2bänk.vila, '4-5 min');
+// Bakåtkompatibilitet: Vila är en VALFRI kolumn. Cykel 2-fliken saknar den helt
+// och ska läsas som förr, med tom sträng i stället för undefined.
+eq('program utan Vila-kolumn ger tom sträng', ex(V1, 1, 0, 'Bänkpress').vila, '');
 
 // AMRAP är fritext i Reps-kolumnen och får inte tolkas som tal.
 const v2amrap = ex(V2, 5, 1, 'Bänkpress');
@@ -269,7 +290,7 @@ eq('v2 deload sänker volymen', v2deload.set, 4);
 eq('v2 deload behåller vikten', v2deload.målvikt, 102.5);
 
 // Cykel 2-programmet läses fortfarande, inklusive dess AMRAP i vecka 3.
-eq('v1 Pass 1 bänkpress 4x10 @ 97,5', 
+eq('v1 Pass 1 bänkpress 4x10 @ 97,5',
   [ex(V1, 1, 0, 'Bänkpress').set, ex(V1, 1, 0, 'Bänkpress').reps, ex(V1, 1, 0, 'Bänkpress').målvikt],
   [4, '10', 97.5]);
 eq('v1 vecka 3 AMRAP-text bevarad', ex(V1, 3, 2, 'Bänkpress').segments[0].reps, 'AMRAP');
