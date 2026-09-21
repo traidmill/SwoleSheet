@@ -16,7 +16,25 @@ const WEEK_KEY_PREFIX = 'week:';
 // sista till första — via auto-avancering eller manuell stegning förbi sista veckan.
 const CYCLE_KEY_PREFIX = 'cycle:';
 
-function doGet() {
+function doGet(e) {
+  // ?export=<flik> → hela fliken som JSON i stället för appen. Läsning ENDAST.
+  // Finns för att kunna analysera loggen utanför appen (blockutvärdering) utan
+  // manuell xlsx-export. Skyddet är webbappens eget: deployen har access MYSELF,
+  // så anropet kräver en OAuth-token för ägarens konto. Datum serialiseras till
+  // ISO av JSON.stringify; klienten får tolka dem.
+  const exportSheet = e && e.parameter && e.parameter.export;
+  if (exportSheet) {
+    let body;
+    try {
+      const r = _readSheet(String(exportSheet));
+      body = { sheet: String(exportSheet), headers: r.headers, rows: r.rows };
+    } catch (err) {
+      body = { error: String(err && err.message || err) };
+    }
+    return ContentService.createTextOutput(JSON.stringify(body))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   // createTemplateFromFile + evaluate krävs för att <?!= include(...) ?> ska köras
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()

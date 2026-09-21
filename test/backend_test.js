@@ -109,7 +109,21 @@ global.PropertiesService = {
     setProperty: (k, v) => { props[k] = v; }
   })
 };
-global.HtmlService = { createHtmlOutputFromFile: () => ({ setTitle: () => ({}) }) };
+global.HtmlService = {
+  createHtmlOutputFromFile: () => ({ setTitle: () => ({}) }),
+  XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' },
+  // Kedjan i doGet: evaluate().setTitle().setFaviconUrl().setXFrameOptionsMode().addMetaTag()
+  createTemplateFromFile: (name) => {
+    const chain = { _html: name };
+    ['evaluate','setTitle','setFaviconUrl','setXFrameOptionsMode','addMetaTag']
+      .forEach(m => { chain[m] = () => chain; });
+    return chain;
+  }
+};
+global.ContentService = {
+  MimeType: { JSON: 'application/json' },
+  createTextOutput: (t) => ({ _text: t, setMimeType(m) { this._mime = m; return this; } })
+};
 
 // --- ladda Code.js i denna scope ---
 const src = fs.readFileSync(path.join(__dirname, '..', 'appscript', 'Code.js'), 'utf8');
@@ -317,6 +331,22 @@ eq('_detectPR vikt-PR (110 > 105)', _detectPR('PR-test', 'Mark', 3, 110).weightP
 eq('_detectPR ingen PR → null', _detectPR('PR-test', 'Mark', 5, 100), null);
 eq('_detectPR kroppsvikt rep-PR (10 > 8)',
   _detectPR('PR-test', 'Chins', 10, null), { weightPR: false, repPR: true, weight: null, reps: 10 });
+
+// --- doGet: JSON-export vs appen ---
+// ?export=<flik> ska ge JSON; utan parametern ska den vanliga HTML-vägen gå som förr.
+const expOut = doGet({ parameter: { export: 'Logg' } });
+eq('doGet ?export sätter JSON-mimetype', expOut._mime, 'application/json');
+const expJson = JSON.parse(expOut._text);
+eq('doGet ?export returnerar rätt flik', expJson.sheet, 'Logg');
+eq('doGet ?export ger Logg-rubrikerna', expJson.headers.slice(0, 3), ['Datum', 'Pass', 'Övning']);
+eq('doGet ?export ger rader', expJson.rows.length > 0, true);
+// Okänd flik ska ge ett fel i JSON, inte kasta ut ett stackspår till anroparen.
+const expBad = JSON.parse(doGet({ parameter: { export: 'FinnsInte' } })._text);
+eq('doGet ?export okänd flik ger error-fält', typeof expBad.error === 'string', true);
+eq('doGet ?export okänd flik läcker inga rader', expBad.rows, undefined);
+// Utan parameter: HTML-vägen, alltså INTE ett ContentService-svar.
+eq('doGet utan parameter går HTML-vägen', doGet()._mime, undefined);
+eq('doGet utan argument kraschar inte', typeof doGet(), 'object');
 
 console.log(failed === 0 ? '\nALLA TESTER OK' : '\n' + failed + ' TESTER MISSLYCKADES');
 process.exit(failed === 0 ? 0 : 1);

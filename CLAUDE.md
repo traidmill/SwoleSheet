@@ -98,6 +98,23 @@ och skjuter in `test/mock.js`, som fejkar `window.google.script.run`. Bygg allti
 om i stället för att redigera `app.html` — den tidigare versionen var en
 handkopia som tyst blev fyra månader gammal.
 
+## Läsa livedata
+
+`doGet` svarar med JSON i stället för appen när den anropas med `?export=<flik>`:
+
+```sh
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://script.google.com/macros/s/<@HEAD-deployment>/exec?export=Logg"
+```
+
+Token tas ur `~/.clasprc.json` (clasp-inloggningen; refresha mot
+`oauth2.googleapis.com/token` när `expiry_date` passerat). Skyddet är
+webbappens eget — deployen har `access: MYSELF`, så anropet kräver en
+OAuth-token för ägarens konto. **Endast läsning**; skrivningar till
+programflikarna går genom kod som pushas, aldrig genom en URL.
+
+Använd `@HEAD`-deploymenten, inte den versionsfästa som PWA:n pekar på.
+
 ## Deploy
 
 Apps Script pushas med `clasp push` från `appscript/`. Kräver
