@@ -268,12 +268,15 @@ function importBankChinsCykel2() {
 // är den som betyder minst för bänk och chins - därav sidolyft sist i alla pass.
 function importBankChinsV2() {
   const SHEET = 'Program: Bänk & Chins v2';
-  // 'Vila' är en valfri kolumn — äldre programflikar saknar den och läses som förr.
-  const headers = ['Vecka', 'Pass', 'Ordning', 'Övning', 'Set', 'Reps', 'Målvikt', 'RIR', 'Vila', 'Notering'];
+  // 'Cykel' och 'Vila' är valfria kolumner — äldre programflikar saknar dem och
+  // läses som förr. Cykeln låter EN flik bära flera varv av samma program med
+  // olika vikter: cykel 1 är blocket som kördes 17 aug–18 sep 2026, cykel 2 är
+  // progressionen skriven ur dess logg. Ny flik behövs först vid strukturändring.
+  const headers = ['Vecka', 'Cykel', 'Pass', 'Ordning', 'Övning', 'Set', 'Reps', 'Målvikt', 'RIR', 'Vila', 'Notering'];
   // wk[i] = veckans segment (array). Segment = [Set, Reps, Målvikt(null=tom), RIR(null=tom), Notering].
   // ord = fast siffra ELLER array med en ordning per vecka (benpassets A/B-växling
   // byter plats på knäböj och marklyft varannan vecka).
-  const PROGRAM = [
+  const CYKEL1 = [
 
     // ===== Pass 1 — MÅNDAG · bänk lätt/teknik =====
     // Tung stång, lätta set. Primar onsdagen 48 h senare. Ska aldrig trötta ut.
@@ -457,41 +460,6 @@ function importBankChinsV2() {
       [[3, '12-15', null, 1, '']], [[3, '12-15', null, 1, '']], [[2, '10-13', null, 3, 'Deload']] ] }
   ];
 
-  const rows = [];
-  let idx = 0;
-  PROGRAM.forEach(function (ex) {
-    ex.wk.forEach(function (segs, i) {
-      if (!segs) return;
-      // ord får vara en siffra (samma alla veckor) eller en array (en per vecka).
-      const ord = Array.isArray(ex.ord) ? ex.ord[i] : ex.ord;
-      segs.forEach(function (s, si) {
-        // Vila sätts per ÖVNING (ex.vila) eller per SEGMENT (ex.vilaSeg) - toppsetet
-        // vilar 4-5 min medan back-off-seten vilar 3, på samma övning.
-        const vila = (ex.vilaSeg && ex.vilaSeg[si]) || ex.vila || '';
-        rows.push([i + 1, ex.pass, ord, ex.övn, s[0], s[1],
-          (s[2] === null ? '' : s[2]), (s[3] === null || s[3] === undefined ? '' : s[3]),
-          vila, s[4] || '', idx++]);
-      });
-    });
-  });
-  // Vecka → pass → ordning → insättningsordning (sista nyckeln bevarar segmentordning, topp före back-off).
-  rows.sort(function (a, b) {
-    return (a[0] - b[0]) || String(a[1]).localeCompare(String(b[1])) || (a[2] - b[2]) || (a[10] - b[10]);
-  });
-  const out = rows.map(function (r) { return r.slice(0, 10); });
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(SHEET);
-  if (!sh) sh = ss.insertSheet(SHEET);
-  sh.clear();
-  sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
-  // Formatera Reps som text så fritext (t.ex. "AMRAP", "10-12/ben") inte tolkas som datum/tal.
-  sh.getRange(2, headers.indexOf('Reps') + 1, out.length, 1).setNumberFormat('@');
-  sh.getRange(2, 1, out.length, headers.length).setValues(out);
-  sh.setFrozenRows(1);
-  return out.length;
-}
-
 // Skapar fliken "Program: Bänk & Chins v3" — efterföljaren till v2, designad
 // 2026-09-21 ur v2:s femveckorslogg (337 set, 19 av 19 planerade pass körda).
 //
@@ -571,12 +539,7 @@ function importBankChinsV2() {
 // bedömer att tiden går att hantera men inte att den tål mer.
 // Accessoarernas ordning är satt så att den som stryks vid tidsbrist (bakifrån)
 // betyder minst för bänk och chins - därav sidolyft sist i alla pass.
-function importBankChinsV3() {
-  const SHEET = 'Program: Bänk & Chins v3';
-  const headers = ['Vecka', 'Pass', 'Ordning', 'Övning', 'Set', 'Reps', 'Målvikt', 'RIR', 'Vila', 'Notering'];
-  // wk[i] = veckans segment (array). Segment = [Set, Reps, Målvikt(null=tom), RIR(null=tom), Notering].
-  // ord = fast siffra ELLER array med en ordning per vecka (benpassets A/B-växling).
-  const PROGRAM = [
+  const CYKEL2 = [
 
     // ===== Pass 1 — MÅNDAG · bänk lätt/teknik =====
     // Tung stång, lätta set. Primar onsdagen 48 h senare. Ska aldrig trötta ut.
@@ -754,28 +717,34 @@ function importBankChinsV3() {
       [[3, '12-15', null, 1, '']], [[3, '12-15', null, 1, '']], [[2, '10-13', null, 3, 'Deload']] ] }
   ];
 
+  const CYKLER = [{ cykel: 1, program: CYKEL1 }, { cykel: 2, program: CYKEL2 }];
+
   const rows = [];
   let idx = 0;
-  PROGRAM.forEach(function (ex) {
-    ex.wk.forEach(function (segs, i) {
-      if (!segs) return;
-      // ord får vara en siffra (samma alla veckor) eller en array (en per vecka).
-      const ord = Array.isArray(ex.ord) ? ex.ord[i] : ex.ord;
-      segs.forEach(function (s, si) {
-        // Vila sätts per ÖVNING (ex.vila) eller per SEGMENT (ex.vilaSeg) - toppsetet
-        // vilar 4-5 min medan back-off-seten vilar 3, på samma övning.
-        const vila = (ex.vilaSeg && ex.vilaSeg[si]) || ex.vila || '';
-        rows.push([i + 1, ex.pass, ord, ex.övn, s[0], s[1],
-          (s[2] === null ? '' : s[2]), (s[3] === null || s[3] === undefined ? '' : s[3]),
-          vila, s[4] || '', idx++]);
+  CYKLER.forEach(function (c) {
+    c.program.forEach(function (ex) {
+      ex.wk.forEach(function (segs, i) {
+        if (!segs) return;
+        // ord får vara en siffra (samma alla veckor) eller en array (en per vecka).
+        const ord = Array.isArray(ex.ord) ? ex.ord[i] : ex.ord;
+        segs.forEach(function (s, si) {
+          // Vila sätts per ÖVNING (ex.vila) eller per SEGMENT (ex.vilaSeg) - toppsetet
+          // vilar 4-5 min medan back-off-seten vilar 3, på samma övning.
+          const vila = (ex.vilaSeg && ex.vilaSeg[si]) || ex.vila || '';
+          rows.push([i + 1, c.cykel, ex.pass, ord, ex.övn, s[0], s[1],
+            (s[2] === null ? '' : s[2]), (s[3] === null || s[3] === undefined ? '' : s[3]),
+            vila, s[4] || '', idx++]);
+        });
       });
     });
   });
-  // Vecka → pass → ordning → insättningsordning (sista nyckeln bevarar segmentordning, topp före back-off).
+  // Cykel → vecka → pass → ordning → insättningsordning (sista nyckeln bevarar
+  // segmentordningen, topp före back-off).
   rows.sort(function (a, b) {
-    return (a[0] - b[0]) || String(a[1]).localeCompare(String(b[1])) || (a[2] - b[2]) || (a[10] - b[10]);
+    return (a[1] - b[1]) || (a[0] - b[0]) || String(a[2]).localeCompare(String(b[2]))
+      || (a[3] - b[3]) || (a[11] - b[11]);
   });
-  const out = rows.map(function (r) { return r.slice(0, 10); });
+  const out = rows.map(function (r) { return r.slice(0, 11); });
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(SHEET);
@@ -788,6 +757,7 @@ function importBankChinsV3() {
   sh.setFrozenRows(1);
   return out.length;
 }
+
 
 // --- helpers ---
 
@@ -1050,8 +1020,14 @@ function setActiveProgram(programName) {
 // Distinkta veckonummer i en programflik (sorterade). [1] om ingen 'Vecka'-kolumn
 // eller inga veckovärden — programmet beter sig då som "en-vecka" (dagens beteende).
 // Delegerar till _programBundle så veckoutvinningen bara finns på ett ställe.
-function _getProgramWeeks(programName) {
-  return _programBundle(programName).weeks;
+function _getProgramWeeks(programName, cykel) {
+  return _programBundle(programName, null, cykel).weeks;
+}
+
+// Cyklerna som faktiskt finns definierade i programfliken (tom lista = fliken
+// saknar Cykel-kolumn och har alltså bara en uppsättning vikter).
+function _getProgramCycles(programName) {
+  return _programBundle(programName).cycles;
 }
 
 function _getCurrentWeek(programName) {
@@ -1073,18 +1049,26 @@ function _setCycle(programName, cykel) {
 // bakåt förbi första = tillbaka till förra cykeln) eller korrigerar cykelräknaren.
 function setCurrentWeek(programName, vecka, cykel) {
   const name = programName || _getActiveProgram();
+  // Cykeln sätts FÖRE programmet läses. Wrappar man förbi sista veckan till en ny
+  // cykel måste den nya cykelns vikter tillbaka i svaret — läser man först får man
+  // förra cykelns, och appen visar fel vikter tills nästa omladdning.
+  if (cykel !== undefined && cykel !== null && cykel !== '') _setCycle(name, cykel);
+  const cyk = _getCycle(name);
   // En läsning för att validera veckan och hämta veckolistan + rätt veckas program.
-  const probe = _programBundle(name, vecka);
+  const probe = _programBundle(name, vecka, cyk);
   const v = (probe.weeks.indexOf(Number(vecka)) >= 0) ? Number(vecka) : probe.weeks[0];
   PropertiesService.getDocumentProperties().setProperty(WEEK_KEY_PREFIX + name, String(v));
-  if (cykel !== undefined && cykel !== null && cykel !== '') _setCycle(name, cykel);
   // Om veckan justerades (ogiltig) behöver vi rätt veckas rader.
-  const bundle = (v === Number(vecka)) ? probe : _programBundle(name, v);
+  const bundle = (v === Number(vecka)) ? probe : _programBundle(name, v, cyk);
   // Ny vecka → ny klart-status; skickas med så listvyn slipper ett extra anrop.
-  const weekStats = (bundle.weeks && bundle.weeks.length > 1) ? _weekSessionStats(name, v, _getCycle(name)) : null;
+  const weekStats = (bundle.weeks && bundle.weeks.length > 1) ? _weekSessionStats(name, v, cyk) : null;
   return {
     week: v,
-    cycle: _getCycle(name),
+    cycle: cyk,
+    // Vilken cykels vikter som faktiskt körs. Skiljer sig från 'cycle' när
+    // räknaren gått förbi sista definierade cykeln i fliken.
+    cycleUsed: bundle.cycle,
+    cycles: bundle.cycles,
     weeks: bundle.weeks,
     program: bundle.program,
     listStats: _listStatsFromCols(_readLoggCols(), name, weekStats)
@@ -1097,13 +1081,53 @@ function setCurrentWeek(programName, vecka, cykel) {
 // Perf: tidigare läste getProgram + _getProgramWeeks + _getCurrentWeek bladet 3 ggr;
 // detta gör allt i en enda _readSheet. Hela hot-pathen (getInitData/setActiveProgram/
 // setCurrentWeek) bygger på denna.
-function _programBundle(programName, vecka) {
+function _programBundle(programName, vecka, cykel) {
   const name = programName ? programName : _getActiveProgram();
   const sheetName = _programSheetName(name);
   const r = _readSheet(sheetName);
-
-  // Veckor + vald vecka — härleds ur den redan lästa datan (ingen extra läsning).
   const cVecka = r.colMap['Vecka'];
+
+  // --- Cykel: valfri kolumn. Låter EN programflik bära flera varv av samma
+  // program med olika vikter, så en ny flik bara behövs vid strukturändring
+  // och inte vid löpande progression. Måste filtreras FÖRE veckan, eftersom
+  // vilka veckor som finns beror på cykeln. Flikar utan kolumnen läses som förr.
+  const cCykel = r.colMap['Cykel'];
+  let cycles = [];
+  let cyk = 1;
+  if (cCykel !== undefined) {
+    const seenC = {};
+    r.rows.forEach(function (row) {
+      const v = Number(row[cCykel]);
+      if (v && !seenC[v]) { seenC[v] = true; cycles.push(v); }
+    });
+    cycles.sort(function (a, b) { return a - b; });
+    const önskad = (cykel !== undefined && cykel !== null && cykel !== '')
+      ? Number(cykel) : _getCycle(name);
+    // Högsta definierade cykel som inte överstiger den önskade. Ligger räknaren
+    // före flikens sista cykel körs den sista vidare i stället för att falla
+    // tillbaka till de lättaste vikterna; bundlens 'cycle' säger vilken som gäller.
+    cyk = cycles.length ? cycles[0] : 1;
+    cycles.forEach(function (c) { if (c <= önskad) cyk = c; });
+
+    // Tom Cykel = raden gäller alla cykler (bas), så oförändrade accessoarer kan
+    // skrivas en gång. En cykelspecifik rad för samma övning tar över basen —
+    // annars skulle de två slås ihop till segment av samma övning.
+    const kPass = r.colMap['Pass'], kOrd = r.colMap['Ordning'], kÖvn = r.colMap['Övning'];
+    const nyckel = function (row) {
+      return String(row[kPass]) + '|' + String(row[kOrd]) + '|' + String(row[kÖvn]) +
+        '|' + (cVecka === undefined ? '' : String(row[cVecka]));
+    };
+    const harEgen = {};
+    r.rows.forEach(function (row) {
+      if (Number(row[cCykel]) === cyk) harEgen[nyckel(row)] = true;
+    });
+    r.rows = r.rows.filter(function (row) {
+      const c = Number(row[cCykel]);
+      return c ? (c === cyk) : !harEgen[nyckel(row)];
+    });
+  }
+
+  // Veckor + vald vecka — härleds ur den redan cykelfiltrerade datan.
   let weeks = [1];
   let wk = 1;
   if (cVecka !== undefined) {
@@ -1198,13 +1222,13 @@ function _programBundle(programName, vecka) {
     exercises.sort(function (a, b) { return a.ordning - b.ordning; });
     return { pass: p, exercises: exercises };
   });
-  return { program: program, weeks: weeks, currentWeek: wk };
+  return { program: program, weeks: weeks, currentWeek: wk, cycles: cycles, cycle: cyk };
 }
 
 // vecka = valfri. Om fliken har en 'Vecka'-kolumn returneras bara den veckans rader
 // (plus rader med tom Vecka). Saknas kolumnen ignoreras vecka.
-function getProgram(programName, vecka) {
-  return _programBundle(programName, vecka).program;
+function getProgram(programName, vecka, cykel) {
+  return _programBundle(programName, vecka, cykel).program;
 }
 
 // --- public API: history & lookups ---
@@ -1229,7 +1253,11 @@ function getInitData() {
     listStats: _listStatsFromCols(loggCols, activeProgram, _weekStatsFor(activeProgram, bundle)),
     weeks: bundle.weeks,
     currentWeek: bundle.currentWeek,
-    currentCycle: _getCycle(activeProgram)
+    currentCycle: _getCycle(activeProgram),
+    // Cyklerna som finns i fliken, och vilken som faktiskt körs. cycleUsed <
+    // currentCycle betyder att räknaren gått förbi sista skrivna cykeln.
+    cycles: bundle.cycles,
+    cycleUsed: bundle.cycle
   };
 }
 

@@ -48,8 +48,8 @@ Den rikaste kronologin är `clasp list-versions` från `appscript/`, inte git:
 | `Logg` | ett set per rad |
 | `Sessions` | ett pass per rad: `Pass-ID, Pass, Datum, Start-tid, Slut-tid, Notering, Program, Vecka, Cykel, Ändringar` |
 
-Programflikens kolumner: `Vecka, Pass, Ordning, Övning, Set, Reps, Målvikt,
-RIR, Vila, Notering`. **`RIR` och `Vila` är valfria** — `_programBundle` läser
+Programflikens kolumner: `Vecka, Cykel, Pass, Ordning, Övning, Set, Reps,
+Målvikt, RIR, Vila, Notering`. **`Cykel`, `RIR` och `Vila` är valfria** — `_programBundle` läser
 dem via `r.colMap[...]` i stället för `_col()` och faller tillbaka på `''`, så
 äldre flikar (t.ex. Cykel 2, som saknar `Vila`) fungerar oförändrat. Håll nya
 kolumner valfria på samma sätt.
@@ -65,6 +65,20 @@ Flera rader med samma `Ordning` + `Övning` blir **segment** av samma övning
 Aktivt program, aktuell vecka (`week:<program>`) och cykelräknare
 (`cycle:<program>`) ligger i `DocumentProperties`. Cykeln ökar när veckan
 wrappar från sista till första.
+
+**En flik kan bära flera cykler av samma program.** `Cykel`-kolumnen låter
+samma struktur köras om med nya vikter, så en ny programflik behövs först vid
+*strukturändring* — inte vid löpande progression. Regler:
+
+- Tom `Cykel` = raden gäller alla cykler. En cykelspecifik rad för samma
+  övning tar över basen.
+- Begärs en cykel som inte finns används den högsta definierade som är lägre.
+  Räknaren kan alltså gå före fliken utan att vikterna faller tillbaka.
+- Bundlen rapporterar `cycle` (den som körs) vid sidan av räknaren, och appen
+  visar "(vikter cykel N)" när de skiljer sig.
+
+`setCurrentWeek` sätter cykeln **före** den läser programmet — annars får man
+förra cykelns vikter tillbaka vid ett wrap.
 
 ## Konventioner
 

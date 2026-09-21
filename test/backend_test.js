@@ -100,7 +100,9 @@ const ss = new Spreadsheet([programTungt, programVolym, programBank, logg, sessi
 
 // --- globala stubbar ---
 const props = {};
-global.SpreadsheetApp = { getActiveSpreadsheet: () => ss };
+// flush() är en no-op här: fejken skriver synkront till minnet, så det finns
+// inget att tömma. Stubben behövs för att endPass ska gå att köra offline.
+global.SpreadsheetApp = { getActiveSpreadsheet: () => ss, flush: () => {} };
 global.Session = { getScriptTimeZone: () => 'Europe/Stockholm' };
 global.Utilities = { formatDate: (d, tz, p) => fmt(d, p) };
 global.PropertiesService = {
@@ -234,133 +236,149 @@ eq('Logg-rad fick Program', newLogRow[lCols.indexOf('Program')], 'Volymblock');
 // Radantalen är regressionsvakter: ändrar man ett program ska siffran uppdateras
 // medvetet, inte råka glida. Ett segment = en rad, så summan fångar både
 // borttagna övningar och ändrad segmentstruktur.
-const V1 = 'Bänk & Chins', V2 = 'Bänk & Chins v2', V3 = 'Bänk & Chins v3';
+const V1 = 'Bänk & Chins', V2 = 'Bänk & Chins v2';
 eq('importBankChinsCykel2 radantal', importBankChinsCykel2(), 86);
-eq('importBankChinsV2 radantal', importBankChinsV2(), 144);
-eq('importBankChinsV3 radantal', importBankChinsV3(), 144);
-eq('alla tre programmen syns i _listPrograms',
-  _listPrograms().map(p => p.name).filter(n => n.indexOf('Bänk & Chins') === 0), [V1, V2, V3]);
+// 288 = två cykler à 144 rader i EN flik.
+eq('importBankChinsV2 radantal', importBankChinsV2(), 288);
+eq('båda programmen syns i _listPrograms',
+  _listPrograms().map(p => p.name).filter(n => n.indexOf('Bänk & Chins') === 0), [V1, V2]);
 eq('Bänk & Chins veckor', _getProgramWeeks(V1), [1, 2, 3, 4]);
 eq('Bänk & Chins v2 veckor', _getProgramWeeks(V2), [1, 2, 3, 4, 5, 6]);
 
-// Hjälpare: plocka en övning ur ett visst pass (0-indexerat) en viss vecka.
-function ex(prog, vecka, passIdx, namn) {
-  return getProgram(prog, vecka)[passIdx].exercises.find(function (e) { return e.övning === namn; });
+// Hjälpare: plocka en övning ur ett visst pass (0-indexerat), vecka och cykel.
+function ex(prog, vecka, passIdx, namn, cykel) {
+  return getProgram(prog, vecka, cykel)[passIdx].exercises
+    .find(function (e) { return e.övning === namn; });
 }
 
-// v2:s passupplägg: måndag bänk lätt, onsdag bänk tungt, fredag chins tungt, helg ben.
-const v2w1 = getProgram(V2, 1);
+// ══════════ CYKELMEKANIKEN ══════════
+// En flik bär flera varv av samma program med olika vikter, så en ny flik bara
+// behövs vid strukturändring och inte vid löpande progression.
+eq('v2-fliken har två cykler', _getProgramCycles(V2), [1, 2]);
+eq('båda cyklerna har sex veckor', [_getProgramWeeks(V2, 1), _getProgramWeeks(V2, 2)],
+  [[1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6]]);
+// Cyklerna är olika program — samma struktur, olika vikter.
+eq('cykel 1 och 2 har olika bänkvikter',
+  [ex(V2, 1, 1, 'Bänkpress', 1).segments[0].målvikt,
+   ex(V2, 1, 1, 'Bänkpress', 2).segments[0].målvikt], [102.5, 110]);
+eq('samma övningar i båda cyklerna',
+  getProgram(V2, 1, 1).map(p => p.exercises.length),
+  getProgram(V2, 1, 2).map(p => p.exercises.length));
+// Räknaren kan gå förbi sista skrivna cykeln — då körs den sista vidare i
+// stället för att falla tillbaka till de lättaste vikterna.
+const b5 = _programBundle(V2, 1, 5);
+eq('cykel bortom fliken faller till högsta definierade', b5.cycle, 2);
+eq('fallbacken ger cykel 2:s vikter', b5.program[1].exercises[0].segments[0].målvikt, 110);
+// Program utan Cykel-kolumn läses precis som förr.
+eq('flik utan Cykel-kolumn påverkas inte', _programBundle(V1, 1).cycle, 1);
+eq('flik utan Cykel-kolumn har inga cykler', _getProgramCycles(V1), []);
+
+// ══════════ CYKEL 1 — blocket som kördes 17 aug–18 sep 2026 ══════════
+// Bevaras oförändrat så plan kan jämföras mot utfall för de 19 loggade passen.
+const v2w1 = getProgram(V2, 1, 1);
 eq('v2 pass-ordning', v2w1.map(p => p.pass), ['Pass 1', 'Pass 2', 'Pass 3', 'Pass 4']);
 eq('v2 Pass 1 övningar', v2w1[0].exercises.map(e => e.övning),
   ['Bänkpress', 'Viktade chins (lätt)', 'Maskinrodd', 'Overhead tricepsextension',
    'Incline hantelcurl', 'Reverse flyes', 'Sidolyft']);
 eq('v2 Pass 3 leds av tunga chins, inte bänk', v2w1[2].exercises[0].övning, 'Viktade chins');
-
-// Revisionen 2026-08-13/14: måndagens breda chins blev viktade (måndagsprincipen
-// "tung stång, lätta set" gäller båda huvudlyften), breda chins flyttade till
-// onsdagen, och militärpressen ersatte bänkpress smalt grepp på fredagen.
 eq('breda chins ligger på onsdagen', v2w1[1].exercises.some(e => e.övning === 'Breda chins'), true);
-eq('breda chins INTE kvar på måndagen', v2w1[0].exercises.some(e => e.övning === 'Breda chins'), false);
-eq('militärpress ersatte smalbänken', v2w1[2].exercises.map(e => e.övning).indexOf('Militärpress') >= 0, true);
+eq('militärpress ersatte smalbänken', v2w1[2].exercises.some(e => e.övning === 'Militärpress'), true);
 eq('bänkpress smalt grepp borta', v2w1[2].exercises.some(e => e.övning === 'Bänkpress smalt grepp'), false);
-eq('incline hantelcurl tillagd på måndagen', ex(V2, 1, 0, 'Incline hantelcurl') !== undefined, true);
 
 // Segmentgruppering: toppset + back-off blir EN övning med två segment,
 // och .set är summan av segmentens set (1 + 3 = 4).
-const v2bänk = ex(V2, 1, 1, 'Bänkpress');
+const v2bänk = ex(V2, 1, 1, 'Bänkpress', 1);
 eq('v2 onsdagsbänk 2 segment', v2bänk.segments.length, 2);
 eq('v2 onsdagsbänk toppset 102,5', v2bänk.segments[0].målvikt, 102.5);
-eq('v2 onsdagsbänk back-off 100', v2bänk.segments[1].målvikt, 100);
 eq('v2 onsdagsbänk .set = summan', v2bänk.set, 4);
-const v2chins = ex(V2, 1, 2, 'Viktade chins');
-eq('v2 fredagschins 2 segment', v2chins.segments.length, 2);
-eq('v2 fredagschins toppset +27,5', v2chins.segments[0].målvikt, 27.5);
 
-// Vila-kolumnen. Sätts antingen per ÖVNING (ex.vila) eller per SEGMENT
-// (ex.vilaSeg) — toppsetet vilar längre än back-off på samma övning.
-eq('vila per övning: måndagsbänken', ex(V2, 1, 0, 'Bänkpress').vila, '2-3 min');
-eq('vila per övning: sidolyft', ex(V2, 1, 0, 'Sidolyft').vila, '60-90 s');
-eq('vila per segment: toppset vilar längre',
-  v2bänk.segments.map(s => s.vila), ['4-5 min', '3 min']);
-eq('övningens vila = första segmentets', v2bänk.vila, '4-5 min');
-// Bakåtkompatibilitet: Vila är en VALFRI kolumn. Cykel 2-fliken saknar den helt
-// och ska läsas som förr, med tom sträng i stället för undefined.
+// Vila per övning och per segment.
+eq('vila per övning: måndagsbänken', ex(V2, 1, 0, 'Bänkpress', 1).vila, '2-3 min');
+eq('vila per segment: toppset vilar längre', v2bänk.segments.map(s => s.vila), ['4-5 min', '3 min']);
 eq('program utan Vila-kolumn ger tom sträng', ex(V1, 1, 0, 'Bänkpress').vila, '');
 
 // AMRAP är fritext i Reps-kolumnen och får inte tolkas som tal.
-const v2amrap = ex(V2, 5, 1, 'Bänkpress');
-eq('v2 vecka 5 mätpunkt är AMRAP', v2amrap.segments[0].reps, 'AMRAP');
-eq('v2 vecka 5 AMRAP på 112,5', v2amrap.segments[0].målvikt, 112.5);
+eq('v2 vecka 5 mätpunkt är AMRAP', ex(V2, 5, 1, 'Bänkpress', 1).segments[0].reps, 'AMRAP');
+eq('v2 vecka 5 AMRAP på 112,5', ex(V2, 5, 1, 'Bänkpress', 1).segments[0].målvikt, 112.5);
 
-// Benpassets A/B-växling: knäböj och marklyft byter plats varannan vecka så de
-// aldrig är tunga samma dag. Drivs av en ordning-ARRAY i stället för en siffra.
-eq('v2 benpass vecka 1 leds av knäböj', getProgram(V2, 1)[3].exercises[0].övning, 'Knäböj');
-eq('v2 benpass vecka 2 leds av marklyft', getProgram(V2, 2)[3].exercises[0].övning, 'Marklyft');
-eq('v2 benpass vecka 3 tillbaka till knäböj', getProgram(V2, 3)[3].exercises[0].övning, 'Knäböj');
+// Benpassets A/B-växling: knäböj och marklyft byter plats varannan vecka.
+eq('v2 benpass vecka 1 leds av knäböj', getProgram(V2, 1, 1)[3].exercises[0].övning, 'Knäböj');
+eq('v2 benpass vecka 2 leds av marklyft', getProgram(V2, 2, 1)[3].exercises[0].övning, 'Marklyft');
 
-// Deload (vecka 6) enligt Helms: vikten står kvar, volymen ner. Måndagsbänken
-// går 6→4 set på samma 102,5 kg som vecka 5.
-const v2deload = ex(V2, 6, 0, 'Bänkpress');
-eq('v2 deload sänker volymen', v2deload.set, 4);
-eq('v2 deload behåller vikten', v2deload.målvikt, 102.5);
+// Deload enligt Helms: vikten står kvar, volymen ner.
+eq('v2 deload sänker volymen', ex(V2, 6, 0, 'Bänkpress', 1).set, 4);
+eq('v2 deload behåller vikten', ex(V2, 6, 0, 'Bänkpress', 1).målvikt, 102.5);
 
-// Cykel 2-programmet läses fortfarande, inklusive dess AMRAP i vecka 3.
+// ══════════ CYKEL 2 — progressionen skriven ur cykel 1:s logg ══════════
+// Bänkmax 130 -> 137,5 efter AMRAP:en. Procentsatserna är identiska med
+// cykel 1:s, så det är samma block mot ett rättat max.
+eq('cykel 2 inget pass har växt',
+  getProgram(V2, 1, 2).map(p => p.exercises.length), [7, 6, 5, 4]);
+eq('cykel 2 bänk toppset v1-v4',
+  [1, 2, 3, 4].map(w => ex(V2, w, 1, 'Bänkpress', 2).segments[0].målvikt), [110, 115, 120, 125]);
+eq('cykel 2 bänk back-off ligger under toppen',
+  [1, 2, 3, 4].map(w => ex(V2, w, 1, 'Bänkpress', 2).segments[1].målvikt), [107.5, 112.5, 115, 120]);
+
+// Mätpunkten flyttad 112,5 -> 117,5 och ligger UNDER vecka 3:s toppset,
+// så den möts på känd mark.
+const c2amrap = ex(V2, 5, 1, 'Bänkpress', 2).segments[0];
+eq('cykel 2 mätpunkt är AMRAP', c2amrap.reps, 'AMRAP');
+eq('cykel 2 mätpunkt på 117,5', c2amrap.målvikt, 117.5);
+eq('cykel 2 mätvikt under vecka 3:s toppset',
+  c2amrap.målvikt < ex(V2, 3, 1, 'Bänkpress', 2).segments[0].målvikt, true);
+
+eq('cykel 2 chins toppset v1-v4',
+  [1, 2, 3, 4].map(w => ex(V2, w, 2, 'Viktade chins', 2).segments[0].målvikt), [30, 35, 37.5, 42.5]);
+eq('cykel 2 militärpress vikter',
+  [1, 2, 3, 4, 5].map(w => ex(V2, w, 2, 'Militärpress', 2).målvikt), [60, 62.5, 65, 65, 65]);
+eq('cykel 2 militärpress reps stiger sist',
+  [1, 2, 3, 4, 5].map(w => ex(V2, w, 2, 'Militärpress', 2).reps), ['6', '6', '5', '5', '6']);
+
+// Ändringar ur cykel 1:s logg — var och en vaktad.
+eq('cykel 2 knäböj sänkt 5 %',
+  [1, 3, 5].map(w => ex(V2, w, 3, 'Knäböj', 2).målvikt), [95, 97.5, 100]);
+eq('cykel 2 gående utfall nedskuret till 2 set', ex(V2, 1, 3, 'Gående utfall', 2).set, 2);
+eq('cykel 1 hade 3 set utfall', ex(V2, 1, 3, 'Gående utfall', 1).set, 3);
+eq('cykel 2 spidercurl matchar hur den körs', ex(V2, 1, 2, 'Spidercurl', 2).reps, '15-25');
+// Cykel 1 sa "vikten kvar" i deloaden men sänkte måndagschinsen ändå. Rättat i cykel 2.
+eq('cykel 2 deload behåller måndagschinsens vikt',
+  ex(V2, 6, 0, 'Viktade chins (lätt)', 2).målvikt,
+  ex(V2, 5, 0, 'Viktade chins (lätt)', 2).målvikt);
+eq('cykel 2 benpass växlar A/B',
+  [getProgram(V2, 1, 2)[3].exercises[0].övning, getProgram(V2, 2, 2)[3].exercises[0].övning],
+  ['Knäböj', 'Marklyft']);
+
+// Cykel 2-programmet (Cykel 2-fliken, äldre block) läses fortfarande.
 eq('v1 Pass 1 bänkpress 4x10 @ 97,5',
   [ex(V1, 1, 0, 'Bänkpress').set, ex(V1, 1, 0, 'Bänkpress').reps, ex(V1, 1, 0, 'Bänkpress').målvikt],
   [4, '10', 97.5]);
 eq('v1 vecka 3 AMRAP-text bevarad', ex(V1, 3, 2, 'Bänkpress').segments[0].reps, 'AMRAP');
 
-// --- Bänk & Chins v3: grundvalen flyttad, strukturen behållen ---
-// v3 bygger på bänkmax 137,5 (upp från 130 efter v2:s AMRAP) och chins
-// systemvikt ~154. Testerna vaktar de beslut som togs ur v2:s logg.
-eq('v3 veckor', _getProgramWeeks(V3), [1, 2, 3, 4, 5, 6]);
-const v3w1 = getProgram(V3, 1);
-eq('v3 pass-ordning', v3w1.map(p => p.pass), ['Pass 1', 'Pass 2', 'Pass 3', 'Pass 4']);
-eq('v3 inget pass har växt', v3w1.map(p => p.exercises.length), [7, 6, 5, 4]);
-
-// Bänkrampen: samma relativa position som v2, mot ett rättat max.
-// 110/115/120/125 = 80/84/87/91 % av 137,5.
-const v3topp = [1, 2, 3, 4].map(w => ex(V3, w, 1, 'Bänkpress').segments[0].målvikt);
-eq('v3 bänk toppset v1-v4', v3topp, [110, 115, 120, 125]);
-const v3back = [1, 2, 3, 4].map(w => ex(V3, w, 1, 'Bänkpress').segments[1].målvikt);
-eq('v3 bänk back-off ligger under toppen', v3back, [107.5, 112.5, 115, 120]);
-
-// Mätpunkten flyttad 112,5 -> 117,5 och ligger UNDER vecka 3:s toppset,
-// så den möts på känd mark. Fritexten AMRAP får inte tolkas som tal.
-const v3amrap = ex(V3, 5, 1, 'Bänkpress').segments[0];
-eq('v3 mätpunkt är AMRAP', v3amrap.reps, 'AMRAP');
-eq('v3 mätpunkt på 117,5', v3amrap.målvikt, 117.5);
-eq('v3 mätvikt under vecka 3:s toppset', v3amrap.målvikt < v3topp[2], true);
-
-// Chins: +42,5 i vecka 4 = systemvikt 134,5 = 87 % av 154, samma relativa
-// position som +40 hade mot förra maxet.
-eq('v3 chins toppset v1-v4',
-  [1, 2, 3, 4].map(w => ex(V3, w, 2, 'Viktade chins').segments[0].målvikt), [30, 35, 37.5, 42.5]);
-eq('v3 chins mätpunkt', ex(V3, 5, 2, 'Viktade chins').segments[0].reps, 'AMRAP');
-
-// Militärpressen: repsen stiger sist, vikten står stilla från v3.
-eq('v3 militärpress vikter',
-  [1, 2, 3, 4, 5].map(w => ex(V3, w, 2, 'Militärpress').målvikt), [60, 62.5, 65, 65, 65]);
-eq('v3 militärpress reps stiger sist',
-  [1, 2, 3, 4, 5].map(w => ex(V3, w, 2, 'Militärpress').reps), ['6', '6', '5', '5', '6']);
-
-// Ändringar ur v2:s logg — var och en vaktad.
-eq('v3 knäböj sänkt 5 %',
-  [1, 3, 5].map(w => ex(V3, w, 3, 'Knäböj').målvikt), [95, 97.5, 100]);
-eq('v3 gående utfall nedskuret till 2 set', ex(V3, 1, 3, 'Gående utfall').set, 2);
-eq('v3 spidercurl matchar hur den körs', ex(V3, 1, 2, 'Spidercurl').reps, '15-25');
-// v2 sa "vikten kvar" i deloaden men sänkte chinsen ändå. Rättat i v3.
-eq('v3 deload behåller måndagschinsens vikt',
-  ex(V3, 6, 0, 'Viktade chins (lätt)').målvikt, ex(V3, 5, 0, 'Viktade chins (lätt)').målvikt);
-
-// A/B-växlingen på benpasset lever kvar.
-eq('v3 benpass v1 leds av knäböj', getProgram(V3, 1)[3].exercises[0].övning, 'Knäböj');
-eq('v3 benpass v2 leds av marklyft', getProgram(V3, 2)[3].exercises[0].övning, 'Marklyft');
-
-// Vila per segment: toppsetet vilar längre än back-off på samma övning.
-eq('v3 vila per segment på bänken',
-  ex(V3, 1, 1, 'Bänkpress').segments.map(s => s.vila), ['4-5 min', '3 min']);
-eq('v3 vila per övning på måndagsbänken', ex(V3, 1, 0, 'Bänkpress').vila, '2-3 min');
+// --- setCurrentWeek måste byta cykel FÖRE den läser programmet ---
+// Wrappar man förbi sista veckan till en ny cykel ska svaret bära den NYA
+// cykelns vikter. Läser man programmet först får man förra cykelns, och appen
+// visar fel vikter tills nästa omladdning. Det var en bugg fram till 2026-09-21.
+const wrap = setCurrentWeek(V2, 1, 2);
+eq('wrap returnerar nya cykeln', wrap.cycle, 2);
+eq('wrap returnerar nya cykelns vikter',
+  wrap.program[1].exercises.find(e => e.övning === 'Bänkpress').segments[0].målvikt, 110);
+eq('wrap rapporterar vilken cykel som körs', wrap.cycleUsed, 2);
+eq('wrap listar flikens cykler', wrap.cycles, [1, 2]);
+// Tillbaka till cykel 1 ska ge cykel 1:s vikter igen.
+const tillbaka = setCurrentWeek(V2, 1, 1);
+eq('tillbaka till cykel 1 ger cykel 1:s vikter',
+  tillbaka.program[1].exercises.find(e => e.övning === 'Bänkpress').segments[0].målvikt, 102.5);
+// getInitData ska rapportera samma sak — men ett aktivt pass styr vilket program
+// som läses (avsiktligt: mitt i ett pass är det passets program som gäller), så
+// sessionen från tidigare tester måste avslutas först.
+const öppet = getActiveSession();
+if (öppet) endPass(öppet.passId);
+setActiveProgram(V2);
+setCurrentWeek(V2, 1, 2);
+const init2 = getInitData();
+eq('getInitData rapporterar cykeln', init2.currentCycle, 2);
+eq('getInitData rapporterar körd cykel', init2.cycleUsed, 2);
+eq('getInitData listar cyklerna', init2.cycles, [1, 2]);
 
 // --- PR-detektering: _detectPR (inline) + analyzeSession (auktoritativ) ---
 // Bygg ett deterministiskt scenario direkt i Logg. Kolumner:

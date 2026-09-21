@@ -13,6 +13,8 @@
       weeks: [1],                 // tillgängliga veckor i aktivt program
       currentWeek: 1,             // vald vecka (vecko-progression)
       currentCycle: 1,            // cykel (varv genom programmets veckor), 1-baserad
+      cycleUsed: null,            // cykeln vars VIKTER körs; < currentCycle när
+                                  // räknaren gått förbi sista cykeln i programfliken
       changingWeek: false,        // true medan veckobyte laddar
       program: null,
       passLastDate: {},
@@ -690,6 +692,7 @@
           state.weeks = d.weeks || [1];
           state.currentWeek = d.currentWeek || 1;
           state.currentCycle = d.currentCycle || 1;
+          state.cycleUsed = d.cycleUsed || null;
           const st = d.listStats || {};
           state.passLastDate = st.lastDateByPass || {};
           state.weekDoneByPass = st.weekDoneByPass || null;
@@ -727,6 +730,7 @@
           state.changingWeek = false;
           state.currentWeek = d.week || week;
           if (d.cycle) state.currentCycle = d.cycle;
+          if (d.cycleUsed) state.cycleUsed = d.cycleUsed;
           if (d.weeks) state.weeks = d.weeks;
           state.program = d.program || state.program;
           if (d.listStats) {
@@ -791,6 +795,15 @@
       });
     }
 
+    // Räknaren kan ha gått förbi sista cykeln som är skriven i programfliken.
+    // Då körs den sista cykelns vikter vidare, och det ska synas — annars står
+    // det "Cykel 3" medan man lyfter cykel 2:s vikter.
+    function cykelNot() {
+      const u = state.cycleUsed;
+      if (!u || u === state.currentCycle) return '';
+      return ' <span style="opacity:.6">(vikter cykel ' + esc(String(u)) + ')</span>';
+    }
+
     function renderPassList(parent) {
       const weekNr = isoWeekNum(state.todayStr);
       parent.appendChild(el('<div class="ghost-num" aria-hidden="true" style="top:6px">' + weekNr + '</div>'));
@@ -821,7 +834,7 @@
           '<div class="stat-card">' +
             '<div class="stat-card-row" style="align-items:center">' +
               '<button id="wkPrev" aria-label="' + (atFirst ? 'Tillbaka till förra cykelns sista vecka' : 'Föregående programvecka') + '" style="' + btn + (!canPrev ? 'opacity:.25;cursor:default;' : '') + '"' + (!canPrev ? ' disabled' : '') + '>‹</button>' +
-              '<span class="stat-card-label">Cykel ' + esc(String(state.currentCycle)) + ' · Vecka ' + esc(String(state.currentWeek)) + ' / ' + esc(String(lastWk)) + (state.changingWeek ? ' …' : '') + '</span>' +
+              '<span class="stat-card-label">Cykel ' + esc(String(state.currentCycle)) + cykelNot() + ' · Vecka ' + esc(String(state.currentWeek)) + ' / ' + esc(String(lastWk)) + (state.changingWeek ? ' …' : '') + '</span>' +
               '<button id="wkNext" aria-label="' + (atLast ? 'Starta nästa cykel (vecka 1)' : 'Nästa programvecka') + '" style="' + btn + '">›</button>' +
             '</div>' +
           '</div>'
@@ -1294,6 +1307,7 @@
                     .withSuccessHandler(function (d) {
                       state.currentWeek = d.week || nw;
                       if (d.cycle) state.currentCycle = d.cycle;
+                      if (d.cycleUsed) state.cycleUsed = d.cycleUsed;
                       if (d.weeks) state.weeks = d.weeks;
                       state.program = d.program || state.program;
                       if (d.listStats) {
@@ -2023,6 +2037,7 @@
           state.weeks = d.weeks || [1];
           state.currentWeek = d.currentWeek || 1;
           state.currentCycle = d.currentCycle || 1;
+          state.cycleUsed = d.cycleUsed || null;
           state.activeSession = d.activeSession || null;
           const st = d.listStats || {};
           state.passLastDate = st.lastDateByPass || {};
