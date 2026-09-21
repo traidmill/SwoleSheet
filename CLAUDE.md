@@ -28,6 +28,18 @@ underlag för programdesign). Filerna direkt i
 `*.xlsx`, `*.csv` — är **arkiv från juni 2026**, före uppdelningen i
 `appscript/`. Redigera dem aldrig.
 
+## Programmens historik
+
+`PROGRAMHISTORIK.md` samlar **varför** programmen ser ut som de gör: kedjan
+Tungt → Block 1 → Cykel 2 → Bänk & Chins v2, besluten med datum och motiv,
+verifierad progression ur loggen, öppna spår (axeln, greppet, mätpunkten i
+vecka 5), materialet, och tidslinjen över alla Apps Script-versioner. Läs den
+innan du föreslår programändringar — resonemangen är täta och ofta
+kontraintuitiva (t.ex. varför primer-singeln ligger UNDER toppsetet).
+
+Den rikaste kronologin är `clasp list-versions` från `appscript/`, inte git:
+67 versioner mot 33 commits.
+
 ## Datamodell (Google Sheets)
 
 | Flik | Roll |
