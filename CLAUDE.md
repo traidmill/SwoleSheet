@@ -132,7 +132,22 @@ Använd `@HEAD`-deploymenten, inte den versionsfästa som PWA:n pekar på.
 ## Deploy
 
 Apps Script pushas med `clasp push` från `appscript/`. Kräver
-`npm i -g @google/clasp` + `clasp login`. PWA-wrappern hostas på GitHub Pages
+`npm i -g @google/clasp` + `clasp login`.
+
+**`clasp push` når inte appen.** PWA:n pekar på en versionsfäst deployment som
+serverar sin frusna kod tills en ny version rullas ut. Ändrar du datamodellen i
+arket måste kod och data ut tillsammans, koden först:
+
+```sh
+clasp push
+clasp version "vNN - vad som ändrats"
+clasp redeploy AKfycbzea4Z6Nzkz3SecXaHU4lFQHLIKHv-3Kb4aqmmrXboybmXRx-mqf_sGbf0NnahKwnfS \
+  --versionNumber NN --description "vNN - ..."
+```
+
+`redeploy` behåller URL:en, så `index.html` inte behöver röras. Hoppar man över
+det läser appen ny data med gammal kod — det gav dubblerade övningar när
+Cykel-kolumnen infördes 2026-09-22. PWA-wrappern hostas på GitHub Pages
 (`traidmill.github.io/SwoleSheet`); `index.html` pekar på Apps Script-deployens
 `/exec`-URL, så den måste uppdateras vid ny deploy-version.
 
